@@ -52,6 +52,15 @@ def combine_sessions(data_path, metadata_file, volpy_results,
     if overwrite:
         print('Overwriting combined data')
 
+        # Load frame times
+        frame_times_file = metadata['frame_times_file']
+        with open('{0}{1}{2}'.format(data_path, sep, frame_times_file), 'rb') as f:
+            output = pkl.load(f)
+        frame_times_concat = output['frame_and_trial_times']['frame_times_concat']
+        trial_start_frames = output['frame_and_trial_times']['trial_start_frames']
+        frame_rate = output['frame_and_trial_times']['frame_rate']
+        frame_rate = np.mean(list(frame_rate.values()))
+
         # Load burst data
         if calc_burst_snr:
             isi_data = isi_dist.get_isi_data(data_path, metadata_file, overwrite = False, make_plot = False)

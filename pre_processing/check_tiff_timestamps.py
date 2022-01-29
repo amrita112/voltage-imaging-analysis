@@ -26,8 +26,7 @@ def check_tiff_timestamps(n_tiff_files, n_daq_frames, bad_timestamps, tiff_time_
             daq_ifi = np.diff(frame_times)
             max_daq_ifi = np.max(daq_ifi)
 
-            if np.logical_or(np.sum(bad_timestamps) == 0, n_large_ifis == n_trials - 1):
-                # If n_large_ifis == n_trials - 1, then assuming IFI = 0.0024 for bad timestamps is correct
+            if np.logical_or(np.sum(bad_timestamps) == 0, n_large_ifis == n_trials):
                 print('All tiff timestamps are readable OR number of large IFIs from Tiff timestamps is equal to expected number of trials')
 
                 if max_tiff_ifi <= max_daq_ifi*1.1:
