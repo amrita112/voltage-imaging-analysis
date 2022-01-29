@@ -39,15 +39,15 @@ def get_frame_times(data_path, metadata_file, tiff_metadata, daq_data, overwrite
         for session in sessions_to_process:
             print('Session {0}'.format(session))
 
-            daq_frame_samples = daq_data['frame_samples'][session]
+            daq_frame_samples = daq_data['frame_samples'][session] # Frame trigger sent out by camera, recorded on NI DAQ
             n_daq_frames = len(daq_frame_samples)
             n_tiff_files = tiff_metadata['n_tiff_files'][session]
             bad_timestamps = tiff_metadata['bad_timestamps'][session]
             tiff_time_from_start_sec = tiff_metadata['tiff_time_from_start_sec'][session]
-            trial_start_samples = daq_data['trial_start_samples'][session]
+            trial_start_samples = daq_data['trial_start_samples'][session] # Trial start trigger sent out by Bpod, recorded on NI DAQ
             n_trials = len(trial_start_samples)
 
-            led_trig = daq_data['led_trig'][session]
+            led_trig = daq_data['led_trig'][session] # LED trigger sent out by Bpod, recorded on NI DAQ
             n_samples = len(led_trig)
             tvec = np.linspace(0, n_samples/daq_sample_rate, n_samples)
             frame_times[session] = tvec[daq_frame_samples]
