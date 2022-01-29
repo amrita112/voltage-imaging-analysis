@@ -25,8 +25,9 @@ def plot_spike_rasters(data_path, metadata_file, bin_size_ms = 10, snr_thresh = 
     spike_times_trials = get_spike_times_trials(data_path, metadata_file, snr_thresh)
     go_cue_time = process_bpod_data.get_go_cue_time(data_path, metadata_file)
     sample_end_time = process_bpod_data.get_sample_end_time(data_path, metadata_file)
+    sample_start_time = process_bpod_data.get_sample_start_time(data_path, metadata_file)
     psth = get_psth(trial_types_left_right_cor_inc, spike_times_trials, bin_size_ms = bin_size_ms)
-    tvec_trial = psth['tvec'] - go_cue_time
+    tvec_trial = psth['tvec'] - go_cue_time + sample_start_time
 
     roi_arrays = get_roi_arrays.get_roi_arrays(data_path, metadata_file)
     n_cells = roi_arrays[sessions_to_process[0]].shape[0]
@@ -70,7 +71,7 @@ def plot_spike_rasters(data_path, metadata_file, bin_size_ms = 10, snr_thresh = 
 
         # Plot dashed line to show sample end time and go cue time
         [y0, y1] = ax[0].get_ylim()
-        ax[0].plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+        ax[0].plot(np.ones(10)*(sample_end_time - go_cue_time + sample_start_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
         ax[0].plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
 
         [y0, y1] = ax[1].get_ylim()
