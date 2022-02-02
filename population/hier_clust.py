@@ -11,14 +11,28 @@ from population import population_psth
 from segmentation import get_roi_arrays
 
 
-def hier_clust(population_data_path, data_paths, metadata_file, input = 'spike_psth', n_clusters = 4):
+def hier_clust(population_data_path, data_paths, metadata_file, input = 'Spike psth', n_clusters = 4):
 
-    if input == 'spike_psth':
+    print('TO BE CHECKED: Trial type order (left/right, correct/incorrect). ')
+    print('Right now, assuming that order returned by process_bpod_data is correct.')
+    print('Padding zeros to dF/F for trials with less frames than max trial length.')
+    if input == 'Spike psth':
         pop_psth = population_psth.get_population_psth(population_data_path, data_paths, metadata_file, plot_psths = False)
         vectors = pop_psth['spikes']
+        tvec = pop_psth['tvec']
+        ticks = [0, pop_psth['sample_end_bin_left'], pop_psth['go_cue_bin_left'],
+                            pop_psth['sample_start_bin_right'], pop_psth['sample_end_bin_right'], pop_psth['go_cue_bin_right']]
 
     else:
-        print('\'input\' must be \'spike_psth\'')
+        if input == 'dFF psth':
+            pop_psth = population_psth.get_population_psth(population_data_path, data_paths, metadata_file, plot_psths = False)
+            vectors = pop_psth['dFF']
+            tvec = pop_psth['dFF_tvec']
+            ticks = [0, pop_psth['sample_end_frame_left'], pop_psth['go_cue_frame_left'],
+                                pop_psth['sample_start_frame_right'], pop_psth['sample_end_frame_right'], pop_psth['go_cue_frame_right']]
+
+        else:
+            print('\'input\' must be \'Spike psth\' or \'dFF psth\'')
 
     norm_input = norm_vectors(vectors)
     dist_matrix = distance.pdist(norm_input, metric = 'correlation')
@@ -28,7 +42,7 @@ def hier_clust(population_data_path, data_paths, metadata_file, input = 'spike_p
     hierarchy.dendrogram(Z)
     plt.xlabel('Neuron #')
     plt.title('{0}-based clustering'.format(input))
-    plt.savefig('{0}{1}Spike_psth_dendrogram'.format(population_data_path, sep))
+    plt.savefig('{0}{1}{2}_dendrogram'.format(population_data_path, sep, input))
 
     cluster_identities = hierarchy.cut_tree(Z, n_clusters = n_clusters)
     cluster_identities = np.reshape(cluster_identities, [-1])
@@ -37,15 +51,32 @@ def hier_clust(population_data_path, data_paths, metadata_file, input = 'spike_p
     dif = np.diff(np.sort(cluster_identities))
     cluster_boundaries = np.where(dif == 1)[0]
 
-    plot_pop_psth(pop_psth, vectors, list(range(vectors.shape[0])), [], ylabel = 'Neuron #',
-                    save_path = '{0}{1}PSTH_population.png'.format(population_data_path, sep))
-    plot_pop_psth(pop_psth, norm_input, list(range(vectors.shape[0])), [], ylabel = 'Neuron #', colorbar_label = 'Z-scored firing rate',
-                    save_path = '{0}{1}Normalized_PSTH_population.png'.format(population_data_path, sep))
-    plot_pop_psth(pop_psth, norm_input, order, cluster_boundaries, colorbar_label = 'Z-scored firing rate',
-                    save_path = '{0}{1}Normalized_PSTH_clusters.png'.format(population_data_path, sep))
-    plot_pop_psth(pop_psth, vectors, order, cluster_boundaries, save_path = '{0}{1}PSTH_clusters.png'.format(population_data_path, sep))
+    if input == 'Spike psth':
+        colorbar_label = 'Firing rate'
+        unit = '(Hz)'
+        figsize = [8, 6]
+    else:
+        if input == 'dFF psth':
+            colorbar_label = 'dF/F'
+            unit = ''
+            figsize = [8, 6]
 
-    plot_cluster_wise_psth(pop_psth, vectors, n_clusters, cluster_identities, save_path = population_data_path)
+    plot_pop_psth(pop_psth, vectors, list(range(vectors.shape[0])), [], tvec, ticks, ylabel = 'Neuron #',
+                    save_path = '{0}{1}{2}_population.png'.format(population_data_path, sep, input),
+                    colorbar_label = '{0} {1}'.format(colorbar_label, unit), figsize = figsize)
+    plot_pop_psth(pop_psth, norm_input, list(range(vectors.shape[0])), [], tvec, ticks, ylabel = 'Neuron #',
+                        colorbar_label = 'Z-scored {0}'.format(colorbar_label), figsize = figsize,
+                    save_path = '{0}{1}Normalized_{2}_population.png'.format(population_data_path, sep, input))
+    plot_pop_psth(pop_psth, norm_input, order, cluster_boundaries, tvec, ticks,
+                        colorbar_label = 'Z-scored {0}'.format(colorbar_label), figsize = figsize,
+                    save_path = '{0}{1}Normalized_{2}_clusters.png'.format(population_data_path, sep, input))
+    plot_pop_psth(pop_psth, vectors, order, cluster_boundaries, tvec, ticks,
+                    colorbar_label = '{0} {1}'.format(colorbar_label, unit), figsize = figsize,
+                    save_path = '{0}{1}{2}_clusters.png'.format(population_data_path, sep, input))
+
+    plot_cluster_wise_psth(pop_psth, vectors, n_clusters, cluster_identities, tvec, ticks,
+                            input = input, ylabel = '{0} {1}'.format(colorbar_label, unit),
+                            save_path = population_data_path)
 
 def snr_by_cluster(population_data_path, data_paths, metadata_file, n_clusters = 3, input = 'spike_psth',
                         overwrite = False):
@@ -142,7 +173,8 @@ def snr_by_cluster(population_data_path, data_paths, metadata_file, n_clusters =
 
 
 
-def validate_clustering(population_data_path, data_paths, metadata_file, n_clusters = 3, input = 'spike_psth',
+def validate_clustering(population_data_path, data_paths, metadata_file, n_clusters = 3,
+                input = 'spike_psth',
                         overwrite = False):
 
     try:
@@ -259,12 +291,13 @@ def norm_vectors(vectors, method = 'z_score'):
 
     return norm_vectors
 
-def plot_cluster_wise_psth(pop_psth, vectors, n_clusters, cluster_identities,
-                            figsize = [20, 6], n_rows = 3,
+def plot_cluster_wise_psth(pop_psth, vectors, n_clusters, cluster_identities, tvec, ticks,
+                            figsize = [20, 6], n_rows = 3, input = 'Spike PSTH', ylabel = 'Firing rate (Hz)',
                             save_figs = True, save_path = None):
 
     n_bins = int(vectors.shape[1]/2)
-    fig_avg, ax_avg = plt.subplots(nrows = 1, ncols = n_clusters, constrained_layout = True, figsize = [20, 4])
+    fig_avg, ax_avg = plt.subplots(nrows = 1, ncols = n_clusters, constrained_layout = True,
+                                    figsize = [20, 4])
 
     print('Plotting PSTHs for each cluster')
 
@@ -301,59 +334,58 @@ def plot_cluster_wise_psth(pop_psth, vectors, n_clusters, cluster_identities,
             y0 = ax_n.get_ylim()[0]
             y1 = ax_n.get_ylim()[1]
 
-            ax_n.plot(np.ones(10)*pop_psth['go_cue_bin_left'], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
-            ax_n.plot(np.ones(10)*pop_psth['sample_end_bin_left'], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
+            ax_n.plot(np.ones(10)*ticks[2], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
+            ax_n.plot(np.ones(10)*ticks[1], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
 
-            ticks = [0, pop_psth['sample_end_bin_left'], pop_psth['go_cue_bin_left'],]
-            labels = pop_psth['tvec'][ticks]
-            ax_n.set_xticks(ticks)
+            labels = tvec[ticks[:3]]
+            ax_n.set_xticks(ticks[:3])
             ax_n.set_xticklabels(np.round(labels, 2))
             ax_n.set_xlabel('Time from go cue (s)')
 
-            x_s1 = 0.2*(pop_psth['sample_end_bin_left'])
-            x_d1 = 0.4*(pop_psth['sample_end_bin_left'] + pop_psth['go_cue_bin_left'])
-            x_r1 = 0.4*(pop_psth['go_cue_bin_left'] + pop_psth['sample_start_bin_right'])
+            x_s1 = 0.2*(ticks[1])
+            x_d1 = 0.4*(ticks[1] + ticks[2])
+            x_r1 = 0.4*(ticks[2] + ticks[3])
 
             ax_n.text(x_s1, y0 + 0.9*(y1 - y0), 'S')
             ax_n.text(x_d1, y0 + 0.9*(y1 - y0), 'D')
             ax_n.text(x_r1, y0 + 0.9*(y1 - y0), 'R')
 
-            ax_n.set_ylabel('Firing rate')
+            ax_n.set_ylabel(ylabel)
 
         y0 = ax_avg[cluster].get_ylim()[0]
         y1 = ax_avg[cluster].get_ylim()[1]
 
-        ax_avg[cluster].plot(np.ones(10)*pop_psth['go_cue_bin_left'], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
-        ax_avg[cluster].plot(np.ones(10)*pop_psth['sample_end_bin_left'], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
+        ax_avg[cluster].plot(np.ones(10)*ticks[2], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
+        ax_avg[cluster].plot(np.ones(10)*ticks[1], np.linspace(y0, y1, 10), color = 'k', linewidth = 0.9, linestyle = '--')
 
-        ticks = [0, pop_psth['sample_end_bin_left'], pop_psth['go_cue_bin_left'],]
-        labels = pop_psth['tvec'][ticks]
-        ax_avg[cluster].set_xticks(ticks)
+        labels = tvec[ticks[:3]]
+        ax_avg[cluster].set_xticks(ticks[:3])
         ax_avg[cluster].set_xticklabels(np.round(labels, 2))
         ax_avg[cluster].set_xlabel('Time from go cue (s)')
 
-        x_s1 = 0.2*(pop_psth['sample_end_bin_left'])
-        x_d1 = 0.4*(pop_psth['sample_end_bin_left'] + pop_psth['go_cue_bin_left'])
-        x_r1 = 0.4*(pop_psth['go_cue_bin_left'] + pop_psth['sample_start_bin_right'])
+        x_s1 = 0.2*(ticks[1])
+        x_d1 = 0.4*(ticks[1] + ticks[2])
+        x_r1 = 0.4*(ticks[2] + ticks[3])
 
         ax_avg[cluster].text(x_s1, y0 + 0.9*(y1 - y0), 'Sample')
         ax_avg[cluster].text(x_d1, y0 + 0.9*(y1 - y0), 'Delay')
         ax_avg[cluster].text(x_r1, y0 + 0.9*(y1 - y0), 'Response')
 
-        ax_avg[cluster].set_ylabel('Firing rate')
+        ax_avg[cluster].set_ylabel(ylabel)
 
         if save_figs:
-            fig.savefig('{0}{1}Cluster{2}_PSTHs.png'.format(save_path, sep, cluster + 1))
+            fig.savefig('{0}{1}Cluster{2}_{3}.png'.format(save_path, sep, cluster + 1, input))
 
     if save_figs:
-        fig_avg.savefig('{0}{1}Cluster_mean_PSTH.png'.format(save_path, sep))
+        fig_avg.savefig('{0}{1}Cluster_mean_{2}.png'.format(save_path, sep, input))
 
-def plot_pop_psth(pop_psth, vectors, neuron_order, cluster_boundaries,
-                    colorbar_label = 'Firing rate (Hz)', figsize = [8, 6], ylabel = 'Neuron # (ordered by cluster)',
+def plot_pop_psth(pop_psth, vectors, neuron_order, cluster_boundaries, tvec, ticks,
+                    colorbar_label = 'Firing rate (Hz)', figsize = [8, 6],
+                    ylabel = 'Neuron # (ordered by cluster)',
                     save_fig = True, save_path = 'pop_psth.png'):
 
     plt.figure(constrained_layout = True, figsize = figsize)
-    plt.imshow(vectors[neuron_order, :])
+    plt.imshow(vectors[neuron_order, :], aspect = 'auto')
     for cb in cluster_boundaries:
         plt.plot(list(range(vectors.shape[1])), np.ones(vectors.shape[1])*cb, color = 'white', linestyle = '--', linewidth = 2)
     plt.colorbar(label = colorbar_label)
@@ -362,26 +394,22 @@ def plot_pop_psth(pop_psth, vectors, neuron_order, cluster_boundaries,
     n_neurons = vectors.shape[0]
     n_bins = int(vectors.shape[1]/2)
 
-    plt.plot(np.ones(n_neurons)*pop_psth['go_cue_bin_left'], list(range(n_neurons)), color = 'white', linewidth = 2)
-    plt.plot(np.ones(n_neurons)*pop_psth['go_cue_bin_right'], list(range(n_neurons)), color = 'white', linewidth = 2)
-    plt.plot(np.ones(n_neurons)*pop_psth['sample_end_bin_left'], list(range(n_neurons)), color = 'white', linewidth = 2)
-    plt.plot(np.ones(n_neurons)*pop_psth['sample_end_bin_right'], list(range(n_neurons)), color = 'white', linewidth = 2)
-    plt.plot(np.ones(n_neurons)*pop_psth['sample_start_bin_right'], list(range(n_neurons)), color = 'white', linewidth = 2)
+    for i in range(1, 6):
+        plt.plot(np.ones(n_neurons)*ticks[i], list(range(n_neurons)), color = 'white', linewidth = 2)
 
-    ticks = [0, pop_psth['sample_end_bin_left'], pop_psth['go_cue_bin_left'],
-                        pop_psth['sample_start_bin_right'], pop_psth['sample_end_bin_right'], pop_psth['go_cue_bin_right']]
-    labels = pop_psth['tvec'][ticks]
+
+    labels = tvec[ticks]
     plt.xticks(ticks = ticks, labels = np.round(labels, 2))
     plt.xlabel('Time from go cue (s)', fontsize = 15)
 
     plt.text(n_bins/3, -5, 'Lick left trials', fontsize = 15)
     plt.text(n_bins + n_bins/3, -5, 'Lick right trials', fontsize = 15)
 
-    x_s1 = 0.2*(pop_psth['sample_end_bin_left'])
+    x_s1 = 0.2*(ticks[1])
     x_s2 = x_s1 + n_bins
-    x_d1 = 0.4*(pop_psth['sample_end_bin_left'] + pop_psth['go_cue_bin_left'])
+    x_d1 = 0.4*(ticks[1] + ticks[2])
     x_d2 = x_d1 + n_bins
-    x_r1 = 0.4*(pop_psth['go_cue_bin_left'] + pop_psth['sample_start_bin_right'])
+    x_r1 = 0.4*(ticks[2] + ticks[3])
     x_r2 = x_r1 + n_bins
 
     plt.text(x_s1, -2, 'Sample')
