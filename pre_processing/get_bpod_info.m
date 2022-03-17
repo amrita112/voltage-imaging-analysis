@@ -28,8 +28,8 @@ for trial = 1:n_trials
     catch
         early_lick_delay(trial) = 0;
     end
-    sample_start(trial) = trial_data.States.SamplePeriod(1);
-    sample_end(trial) = trial_data.States.SamplePeriod(2);
+    sample_start(trial) = trial_data.States.SampleOn1(1);
+    sample_end(trial) = trial_data.States.SampleOn1(2);
     go_cue_start(trial) = trial_data.States.ResponseCue(1);
     go_cue_end(trial) = trial_data.States.ResponseCue(2);
     trial_start_times(trial) = bpod_data.TrialStartTimestamp(trial);

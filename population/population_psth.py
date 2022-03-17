@@ -3,6 +3,8 @@ import os
 import pickle as pkl
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import butter
+from scipy.signal import sosfilt
 
 from behavior_responses import process_bpod_data
 from segmentation import get_roi_arrays
@@ -11,6 +13,7 @@ from volpy import quality_control
 
 def get_population_psth(population_data_path, data_paths, metadata_file,
                         overwrite_spike_psth = False, overwrite_dFF_psth = False,
+                        filter_freq = None, filter_type = 'lp',
                         bin_size_ms = 100, plot_psths = True):
 
     movies = list(data_paths.keys())
@@ -138,7 +141,8 @@ def get_population_psth(population_data_path, data_paths, metadata_file,
         for movie in movies:
             print('    Movie {0}'.format(movie))
             dFF_trials[movie] = get_dFF_trials(data_paths[movie], metadata_file,
-                                            list(cells[movie].astype(int)), blocks[movie])
+                                            list(cells[movie].astype(int)), blocks[movie],
+                                            filter_freq = filter_freq, filter_type = filter_type)
 
             max_n_frames_movie = 0
             trial_types_left_right_cor_inc = process_bpod_data.get_trial_types(data_paths[movie], metadata_file)
@@ -153,11 +157,9 @@ def get_population_psth(population_data_path, data_paths, metadata_file,
                         if dFF_trials[movie]['frames_per_trial'][session][trial] > max_n_frames_movie:
                             max_n_frames_movie = dFF_trials[movie]['frames_per_trial'][session][trial]
 
-            print('Movie {0}: max_n_frames_movie = {1}'.format(movie + 1, max_n_frames_movie))
             if max_n_frames_movie < min_n_frames:
                 min_n_frames = max_n_frames_movie
 
-        print('min_n_frames = {0}'.format(min_n_frames))
         population_psth['dFF'] = np.zeros([total_cells, min_n_frames*2])
 
         go_cue_time = np.zeros(len(movies))
@@ -211,7 +213,6 @@ def get_population_psth(population_data_path, data_paths, metadata_file,
                     cell_no += 1
 
             go_cue_time[movies.index(movie)] = process_bpod_data.get_go_cue_time(data_paths[movie], metadata_file)
-            print('Movie {0}: go_cue_frame = {1}'.format(movie + 1, go_cue_time[movies.index(movie)]*dFF_trials[movie]['frame_rate']))
             sample_end_time[movies.index(movie)] = process_bpod_data.get_sample_end_time(data_paths[movie], metadata_file)
             sample_start_time[movies.index(movie)] = process_bpod_data.get_sample_start_time(data_paths[movie], metadata_file)
 
@@ -228,7 +229,6 @@ def get_population_psth(population_data_path, data_paths, metadata_file,
             print('Sample start times: {0}'.format(sample_start_time))
 
         frame_rate = dFF_trials[movie]['frame_rate']
-        print('Movie {0} frame rate = {1}'.format(movie + 1, frame_rate))
 
         population_psth['sample_start_frame_left'] = 0
         population_psth['sample_end_frame_left'] = int((sample_end_time[0] - sample_start_time[0])*frame_rate)
@@ -237,7 +237,6 @@ def get_population_psth(population_data_path, data_paths, metadata_file,
         population_psth['sample_start_frame_right'] = min_n_frames - 1
         population_psth['sample_end_frame_right'] = min_n_frames + int((sample_end_time[0] - sample_start_time[0])*frame_rate)
         population_psth['go_cue_frame_right'] = min_n_frames + int((go_cue_time[0] - sample_start_time[0])*frame_rate)
-        print('     Go cue frame right = {0}'.format(population_psth['go_cue_frame_right']))
 
         population_tvec = np.zeros(min_n_frames*2)
         population_tvec[:min_n_frames] = list(range(min_n_frames))/frame_rate - go_cue_time[0] + sample_start_time[0]
@@ -312,7 +311,7 @@ def get_spike_times_trials(data_path, metadata_file, good_cells, good_blocks):
     spike_times_trials['max_spike_time'] = max_spike_time
     return spike_times_trials
 
-def get_dFF_trials(data_path, metadata_file, good_cells, good_blocks):
+def get_dFF_trials(data_path, metadata_file, good_cells, good_blocks, filter_freq = None, filter_type = 'lp'):
 
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)
@@ -336,6 +335,9 @@ def get_dFF_trials(data_path, metadata_file, good_cells, good_blocks):
     dFF_trials = {cell: {session: {} for session in sessions_to_process} for cell in range(n_cells)}
     dFF_trials['frames_per_trial'] = {session: {} for session in sessions_to_process}
 
+    if not filter_freq == None:
+        print('Filtering dF/F')
+        
     for session in sessions_to_process:
 
         n_batches = batch_data[session]['n_batches']
@@ -348,6 +350,11 @@ def get_dFF_trials(data_path, metadata_file, good_cells, good_blocks):
         for batch in range(n_batches):
 
             estimates = volpy_results[session][batch]['vpy']
+            dFF_all = estimates['dFF']
+            dFF_filt = {}
+            for cell in range(n_cells):
+                dFF_filt[cell] = filt_dFF(dFF_all[cell], filter_freq, frame_rate, filter_type = filter_type)
+
             first_frame_batch = cum_frames_per_trial[first_trials[batch]]
 
             for trial in range(first_trials[batch], last_trials[batch]):
@@ -361,9 +368,19 @@ def get_dFF_trials(data_path, metadata_file, good_cells, good_blocks):
                         if batch > good_blocks[good_cells.index(cell)]:
                             continue
                         else:
-                            dFF_cell = estimates['dFF'][cell]
+                            dFF_cell = dFF_filt[cell]
                             dFF_trials[cell][session][trial] = dFF_cell[frames_batch]
 
 
     dFF_trials['frame_rate'] = frame_rate
     return dFF_trials
+
+
+def filt_dFF(trace, filter_freq, frame_rate, filter_type = 'lp', order = 3):
+
+    if not filter_freq == None:
+        sos = butter(order, filter_freq, filter_type, fs = frame_rate, output = 'sos')
+        signal = sosfilt(sos, trace)
+    else:
+        signal = trace
+    return signal

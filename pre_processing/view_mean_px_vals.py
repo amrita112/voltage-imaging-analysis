@@ -32,8 +32,8 @@ def view_mean_px_vals(data_path, metadata_file, save_fig = False):
 
     for session in sessions_to_process:
 
-        n_trials = len(list(mean_px_vals[session].keys()))
-        for trial in range(n_trials):
+        trials = list(mean_px_vals[session].keys())
+        for trial in trials:
             mean_px_vals_all = np.append(mean_px_vals_all, mean_px_vals[session][trial])
             mean_photon_vals_all = np.append(mean_photon_vals_all, mean_photon_vals[session][trial])
             ax[1, 1].plot(mean_photon_vals[session][trial])

@@ -14,7 +14,7 @@ def get_roi_arrays(data_path, metadata_file, overwrite = False):
     try:
         with open('{0}{1}{2}'.format(data_path, sep, roi_array_file), 'rb') as f:
             roi_arrays = pkl.load(f)
-        print('ROI arrays loaded')
+        #print('ROI arrays loaded')
     except:
         overwrite = True
 

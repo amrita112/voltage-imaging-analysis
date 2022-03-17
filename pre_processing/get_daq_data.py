@@ -61,10 +61,10 @@ def get_daq_data(data_path, metadata_file, overwrite = False):
             daq_data = daq_data_all[sweeps[0]]
 
             # Get trial start samples
-            if trial_start_trig_channel == 'Analog5':
-                trial_start_trigger = daq_data['analogScans'][4, :]
+            if trial_start_trig_channel == 'Analog4':
+                trial_start_trigger = daq_data['analogScans'][3, :]
             else:
-                print('\'trial_start_trig_channel\' is not Analog5. Change')
+                print('\'trial_start_trig_channel\' is not Analog4. Change')
             med = (np.max(trial_start_trigger) + np.min(trial_start_trigger))/2
             trial_start_trigger[trial_start_trigger <= med] = np.zeros(np.sum(trial_start_trigger <= med))
             trial_start_trigger[trial_start_trigger > med] = np.ones(np.sum(trial_start_trigger > med))

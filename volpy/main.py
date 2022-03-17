@@ -7,8 +7,9 @@ import numpy as np
 def main(data_path, metadata_file,
             overwrite_volpy_results = False,
             overwrite_combined_data = False,
-            calc_burst_snr = False,
+            calc_burst_snr = True,
             disp_combined_data = False,
+            disp_spatial_filters = False, 
             hp_freq_pb = 0.1, disp_output = True):
 
     # Run volpy for all sessions
@@ -24,4 +25,6 @@ def main(data_path, metadata_file,
 
     # Display volpy output summary
     if disp_output:
-        display_output.display_output(data_path, metadata_file, volpy_results)
+        display_output.display_output(data_path, metadata_file, volpy_results, disp_spatial_filters = disp_spatial_filters)
+
+    return volpy_results

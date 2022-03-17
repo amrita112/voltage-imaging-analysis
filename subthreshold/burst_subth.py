@@ -5,6 +5,65 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import os
 
+from volpy import combine_sessions
+
+def get_bursts_session_wise(data_path, metadata_file, isi_data):
+
+    # Load metadata
+    with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
+        metadata = pkl.load(f)
+
+    sessions = list(isi_data.keys())
+    for session in sessions:
+
+        batches = list(isi_data[session].keys())
+        for batch in batches:
+
+            cells = list(isi_data[session][batch].keys())
+            cells = [cell for cell in cells if not (type(cell) is str)]
+            n_cells = len(cells)
+            for cell_n in range(n_cells):
+                cell = cells[cell_n]
+                bimodal = isi_data[session][batch][cell]['bimodal']
+                if not bimodal:
+                    bursts = None
+                    first_spikes = None
+                    continue
+                else:
+
+                    isis = isi_data[session][batch][cell]['isis']
+                    thresh_ms = isi_data[session][batch][cell]['thresh_ms']
+
+                    bursts = {}
+                    first_spikes = []
+                    spike_in_burst = isis < thresh_ms
+                    i = 0
+                    n_spikes_burst = 1
+                    first_spike_burst = i
+                    flag = 0
+                    for i in range(len(isis)):
+                        if spike_in_burst[i]:
+                            n_spikes_burst += 1
+                            if flag == 0:
+                                flag = 1
+                                first_spike_burst = i
+                        else:
+                            if flag:
+                                first_spikes = np.append(first_spikes, first_spike_burst)
+                                try:
+                                    bursts[n_spikes_burst] = np.append(bursts[n_spikes_burst], first_spike_burst)
+                                    spike_flags = spike_in_burst[first_spike_burst:first_spike_burst + n_spikes_burst - 1]
+                                    assert(np.linalg.norm(spike_flags - np.ones(n_spikes_burst - 1)) == 0)
+                                except KeyError:
+                                    bursts[n_spikes_burst] = [first_spike_burst]
+                                n_spikes_burst = 1
+                                flag = 0
+
+                isi_data[session][batch][cell]['bursts'] = bursts
+                isi_data[session][batch][cell]['first_spikes'] = first_spikes
+
+    return isi_data
+
 def get_bursts(data_path, metadata_file, isi_data, overwrite = False, verbose = False):
 
     # Load metadata
@@ -73,8 +132,116 @@ def get_bursts(data_path, metadata_file, isi_data, overwrite = False, verbose = 
 
     return isi_data
 
+def get_burst_dff_session_wise(data_path, metadata_file, isi_data, volpy_results,
+                    frames_before_first_spike = 10, frames_after_last_spike = 10,
+                    pre_burst_dff_avg_frames = 2, dff_sub_freq = 20
+                    ):
 
-def get_burst_dff(data_path, metadata_file, isi_data,
+    # Load metadata
+    with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
+        metadata = pkl.load(f)
+
+    # Load frame rate
+    frame_times_file = metadata['frame_times_file']
+    with open('{0}{1}{2}'.format(data_path, sep, frame_times_file), 'rb') as f:
+        output = pkl.load(f)
+    frame_rate = output['frame_and_trial_times']['frame_rate']
+    frame_rate = np.mean(list(frame_rate.values()))
+
+    sessions = list(isi_data.keys())
+    burst_start_frames = {session: {} for session in sessions}
+    burst_end_frames = {session: {} for session in sessions}
+    burst_dff = {session: {} for session in sessions}
+    burst_dff_sub = {session: {} for session in sessions}
+    burst_dff_avg = {session: {} for session in sessions}
+    peak_to_trough = {session: {} for session in sessions}
+
+    for session in sessions:
+
+        batches = list(isi_data[session].keys())
+        burst_start_frames[session] = {batch: {} for batch in batches}
+        burst_end_frames[session] = {batch: {} for batch in batches}
+        burst_dff[session] = {batch: {} for batch in batches}
+        burst_dff_sub[session] = {batch: {} for batch in batches}
+        burst_dff_avg[session] = {batch: {} for batch in batches}
+        peak_to_trough[session] = {batch: {} for batch in batches}
+
+        for batch in batches:
+
+            cells = list(isi_data[session][batch].keys())
+            cells = [cell for cell in cells if not (type(cell) is str)]
+
+            estimates = volpy_results[session][batch]['vpy']
+
+            for cell in cells:
+
+                if not isi_data[session][batch][cell]['bimodal']:
+                    continue
+                else:
+                    bursts = isi_data[session][batch][cell]['bursts']
+                    burst_lengths = np.sort(list(bursts.keys()))
+                    n_burst_lengths = len(burst_lengths)
+
+                    dFF = estimates['dFF'][cell]
+                    dFF_sub  = combine_sessions.signal_filter(dFF, dff_sub_freq, frame_rate, order=5, mode='low')
+                    spike_frames_batch = estimates['spikes'][cell]
+
+                    burst_dff[session][batch][cell] = {}
+                    burst_dff_sub[session][batch][cell] = {}
+                    burst_dff_avg[session][batch][cell] = {}
+                    burst_start_frames[session][batch][cell] = {}
+                    burst_end_frames[session][batch][cell] = {}
+                    peak_to_trough[session][batch][cell] = {}
+
+                    for idx in range(n_burst_lengths):
+
+                        n_spikes_burst = burst_lengths[idx]
+                        burst_dff[session][batch][cell][n_spikes_burst] = {}
+                        burst_dff_sub[session][batch][cell][n_spikes_burst] = {}
+                        burst_dff_avg[session][batch][cell][n_spikes_burst] = {}
+                        peak_to_trough[session][batch][cell][n_spikes_burst] = {}
+                        start = []
+                        end = []
+
+                        for first_spike in bursts[n_spikes_burst]:
+
+                            last_spike = first_spike + n_spikes_burst - 1
+                            if spike_frames_batch[first_spike] > frames_before_first_spike:
+                                dff_start = int(spike_frames_batch[first_spike] - frames_before_first_spike)
+                            else:
+                                dff_start = 0
+                            dff_avg_start = int(spike_frames_batch[first_spike] - pre_burst_dff_avg_frames)
+                            if dff_avg_start < 0:
+                                dff_avg_start = 0
+                            start = np.append(start, dff_start)
+                            if last_spike >= len(spike_frames_batch):
+                                print(bursts)
+                                print('Last spike = {0}'.format(last_spike))
+                                print('Len(spike_frames_batch) = {0}'.format(len(spike_frames_batch)))
+                            dff_end = int(spike_frames_batch[last_spike] + frames_after_last_spike)
+                            end = np.append(end, dff_end)
+                            burst_dff[session][batch][cell][n_spikes_burst][first_spike] = dFF[dff_start:dff_end]
+                            burst_dff_sub[session][batch][cell][n_spikes_burst][first_spike] = dFF_sub[dff_start:dff_end]
+                            burst_dff_avg[session][batch][cell][n_spikes_burst][first_spike] = np.mean(dFF_sub[dff_avg_start:int(spike_frames_batch[first_spike])])
+
+                            spike_frames_burst = spike_frames_batch[first_spike:first_spike + n_spikes_burst].astype(int)
+                            peaks = dFF[spike_frames_burst[1:]]
+                            troughs = [np.min(dFF[spike_frames_burst[i]:spike_frames_burst[i + 1]]) for i in range(n_spikes_burst - 1)]
+                            peak_to_trough[session][batch][cell][n_spikes_burst][first_spike] = np.mean(peaks - troughs)
+
+                        burst_start_frames[session][batch][cell][n_spikes_burst] = start
+                        burst_end_frames[session][batch][cell][n_spikes_burst] = end
+
+    isi_data['burst_start_frames'] = burst_start_frames
+    isi_data['burst_end_frames'] = burst_end_frames
+    isi_data['burst_dff'] = burst_dff
+    isi_data['peak_to_trough'] = peak_to_trough
+    isi_data['burst_dff_avg'] = burst_dff_avg
+
+    return isi_data
+
+
+def get_burst_dff(data_path, metadata_file, isi_data, volpy_results,
                     frames_before_first_spike = 10, frames_after_last_spike = 10,
                     pre_burst_dff_avg_frames = 2,
                     make_plots = False, n_rows = 3,
@@ -115,10 +282,6 @@ def get_burst_dff(data_path, metadata_file, isi_data,
         cells = list(isi_data.keys())
         cells = [cell for cell in cells if not (type(cell) is str)]
 
-        # Load volpy results + QC data
-        volpy_results_file = metadata['volpy_results_file']
-        with open('{0}{1}{2}'.format(data_path, sep, volpy_results_file), 'rb') as f:
-            volpy_results = pkl.load(f)
 
         dFF = volpy_results['combined_data']['dFF']
         dFF_sub = volpy_results['combined_data']['dFF_sub']

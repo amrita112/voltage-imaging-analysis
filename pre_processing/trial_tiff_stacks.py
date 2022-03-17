@@ -4,6 +4,7 @@ import numpy as np
 import pickle as pkl
 import matplotlib.pyplot as plt
 from natsort import natsorted
+from imread import imread_multi
 import time
 from PIL import Image
 from tqdm import tqdm
@@ -36,8 +37,12 @@ def get_n_frames_per_trial(data_path, metadata_file, overwrite = False):
 
             n_frames_per_trial[session] = np.zeros(len(fnames))
             for trial in tqdm(range(len(fnames))):
-                im = Image.open(fnames[trial])
-                n_frames_per_trial[session][trial] = im.n_frames
+                try:
+                    im = Image.open(fnames[trial])
+                    n_frames_per_trial[session][trial] = im.n_frames
+                except:
+                    im = imread_multi(fnames[trial])
+                    n_frames_per_trial[session][trial] = len(im)
 
         output['frame_and_trial_times']['n_frames_per_trial'] = n_frames_per_trial
         with open('{0}{1}{2}'.format(data_path, sep, frame_times_file), 'wb') as f:
@@ -143,6 +148,7 @@ def trial_tiff_stacks(data_path, metadata_file, overwrite_all = False):
                 img_list[0].save(file_path_save, save_all = True, append_images = img_list[1:])
 
                 print('Trial {0}: {2} frames; {1} seconds'.format(trial + 1, np.round(time.time() - t0), n_frames))
+
 
     # Save mean pixel values and mean photon values
     mean_px_val_file = metadata['mean_px_val_file']

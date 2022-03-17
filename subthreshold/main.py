@@ -21,10 +21,14 @@ def get_subth_from_bursts(data_path, metadata_file,
 
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)
-        
+
+    volpy_results_file = metadata['volpy_results_file']
+    with open('{0}{1}{2}'.format(data_path, sep, volpy_results_file), 'rb') as f:
+        volpy_results = pkl.load(f)
+
     # Plot ISI distribution of all good cells, select cells with bimodal ISI distribution
     # and identify ISI threshold for burst vs non-burst
-    isi_data = isi_dist.get_isi_data(data_path, metadata_file, overwrite = overwrite_isi_data, make_plot = plot_isi_dist)
+    isi_data = isi_dist.get_isi_data(data_path, metadata_file, volpy_results, overwrite = overwrite_isi_data, make_plot = plot_isi_dist)
     if plot_burst_thresh:
         isi_dist.plot_burst_thresh(isi_data, metadata['plots_path'])
 
@@ -32,7 +36,7 @@ def get_subth_from_bursts(data_path, metadata_file,
     isi_data = burst_subth.get_bursts(data_path, metadata_file, isi_data, overwrite = overwrite_burst_data)
 
     # Get dF/F at start of burst of n spikes
-    isi_data = burst_subth.get_burst_dff(data_path, metadata_file, isi_data, overwrite = overwrite_burst_dff, make_plots = plot_dff_in_bursts)
+    isi_data = burst_subth.get_burst_dff(data_path, metadata_file, volpy_results, isi_data, overwrite = overwrite_burst_dff, make_plots = plot_dff_in_bursts)
 
     if np.any([overwrite_isi_data, overwrite_burst_data, overwrite_burst_dff]):
         isi_data_file = metadata['isi_data_file']

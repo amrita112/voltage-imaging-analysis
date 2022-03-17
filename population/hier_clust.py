@@ -13,8 +13,8 @@ from segmentation import get_roi_arrays
 
 def hier_clust(population_data_path, data_paths, metadata_file, input = 'Spike psth', n_clusters = 4):
 
-    print('TO BE CHECKED: Trial type order (left/right, correct/incorrect). ')
-    print('Right now, assuming that order returned by process_bpod_data is correct.')
+    print('TO BE CHECKED: Trial type order matches number of frames per trial ')
+    print('But there are some \'correct\' trials with less frames than go cue')
     print('Padding zeros to dF/F for trials with less frames than max trial length.')
     if input == 'Spike psth':
         pop_psth = population_psth.get_population_psth(population_data_path, data_paths, metadata_file, plot_psths = False)
@@ -57,7 +57,7 @@ def hier_clust(population_data_path, data_paths, metadata_file, input = 'Spike p
         figsize = [8, 6]
     else:
         if input == 'dFF psth':
-            colorbar_label = 'dF/F'
+            colorbar_label = '-dF/F'
             unit = ''
             figsize = [8, 6]
 
@@ -174,29 +174,33 @@ def snr_by_cluster(population_data_path, data_paths, metadata_file, n_clusters =
 
 
 def validate_clustering(population_data_path, data_paths, metadata_file, n_clusters = 3,
-                input = 'spike_psth',
-                        overwrite = False):
+                input = 'Spike psth',
+                        overwrite_spike_psth = False, overwrite_dFF_psth = False,):
+
+    pop_psth_all = population_psth.get_population_psth(population_data_path, data_paths, metadata_file,
+                                                    plot_psths = False)
+    try:
+        with open('{0}{1}hier_clust_validation.py'.format(population_data_path, sep), 'rb') as f:
+            hc_validation = pkl.load(f)
+            spike_psth_validation = hc_validation['spike_psth'] # Matrix of number of neurons X number of bins
+
+    except:
+        overwrite_spike_psth = True
 
     try:
-        with open('{0}{1}hier_clust_validation.pkl', 'rb') as f:
+        with open('{0}{1}hier_clust_validation.py'.format(population_data_path, sep), 'rb') as f:
             hc_validation = pkl.load(f)
-        clust_diff = hc_validation['clust_diff']
-        n_neurons = hc_validation['n_neurons']
-        corr_matrix = hc_validation['corr_matrix']
-        cluster_boundaries = hc_validation['cluster_boundaries']
+            dFF_psth_validation = hc_validation['dFF_psth'] # Matrix of number of neurons X number of frames
     except:
-        overwrite = True
+        overwrite_dFF_psth = True
 
-    if overwrite:
+    if overwrite_dFF_psth or overwrite_spike_psth:
+        hc_validation = {}
 
-        print('Calculating leave-one-out clusters')
+    if overwrite_dFF_psth:
 
-        if input == 'spike_psth':
-            pop_psth = population_psth.get_population_psth(population_data_path, data_paths, metadata_file, plot_psths = False)
-            vectors = pop_psth['spikes']
-
-        else:
-            print('\'input\' must be \'spike_psth\'')
+        hc_validation['dFF_psth'] = {}
+        vectors = pop_psth_all['dFF']
 
         norm_input = norm_vectors(vectors)
         dist_matrix_full = distance.pdist(norm_input, metric = 'correlation')
@@ -207,7 +211,6 @@ def validate_clustering(population_data_path, data_paths, metadata_file, n_clust
         dif = np.diff(np.sort(cluster_identities))
         cluster_boundaries = np.where(dif == 1)[0]
 
-        hc_validation = {}
         n_neurons = norm_input.shape[0]
         clust_diff = np.zeros(n_neurons)
         corr_matrix = np.zeros([n_neurons, n_neurons])
@@ -255,14 +258,89 @@ def validate_clustering(population_data_path, data_paths, metadata_file, n_clust
             else:
                 clust_diff[n] = 1
 
-        hc_validation['clust_diff'] = clust_diff
-        hc_validation['n_neurons'] = n_neurons
-        hc_validation['corr_matrix'] = corr_matrix
-        hc_validation['cluster_boundaries'] = cluster_boundaries
+            hc_validation['dFF_psth']['clust_diff'] = clust_diff
+            hc_validation['dFF_psth']['n_neurons'] = n_neurons
+            hc_validation['dFF_psth']['corr_matrix'] = corr_matrix
+            hc_validation['dFF_psth']['cluster_boundaries'] = cluster_boundaries
+            print('HC based on dFF PSTH')
+            print('Fraction of neurons with different cluster after leaving out = {0}'.format(np.sum(clust_diff)/n_neurons))
+
+    if overwrite_spike_psth:
+
+        hc_validation['spike_psth'] = {}
+        vectors = pop_psth_all['spikes']
+
+        norm_input = norm_vectors(vectors)
+        dist_matrix_full = distance.pdist(norm_input, metric = 'correlation')
+        Z = hierarchy.linkage(dist_matrix_full, method = 'ward')
+        cluster_identities = hierarchy.cut_tree(Z, n_clusters = n_clusters)
+        cluster_identities = np.reshape(cluster_identities, [-1])
+        cluster_order = np.argsort(cluster_identities)
+        dif = np.diff(np.sort(cluster_identities))
+        cluster_boundaries = np.where(dif == 1)[0]
+
+        n_neurons = norm_input.shape[0]
+        clust_diff = np.zeros(n_neurons)
+        corr_matrix = np.zeros([n_neurons, n_neurons])
+
+        for n in range(n_neurons):
+
+            if np.mod(n, 10) == 0:
+                print('Neuron {0}'.format(n + 1))
+
+            for m in range(n):
+                index = int(n_neurons*m + n - (m + 2)*(m + 1)/2)
+                corr_matrix[m, n] = dist_matrix_full[index]
+                corr_matrix[n, m] = corr_matrix[m, n]
+
+            X = np.zeros([n_neurons - 1, norm_input.shape[1]])
+            X[:n, :] = norm_input[:n, :]
+            X[n:, :] = norm_input[(n + 1):, :]
+            dist_matrix = distance.pdist(X, metric = 'correlation')
+            Z = hierarchy.linkage(dist_matrix, method = 'ward')
+            new_cluster_identities = hierarchy.cut_tree(Z, n_clusters = n_clusters)
+            new_cluster_identities = np.reshape(new_cluster_identities, [-1])
+
+            old_cluster_identities = np.zeros(n_neurons - 1)
+            old_cluster_identities[:n] = cluster_identities[:n]
+            old_cluster_identities[n:] = cluster_identities[(n + 1):]
+            if not hierarchy.is_isomorphic(new_cluster_identities, old_cluster_identities):
+
+                #print('     Original clusters: {0}'.format(old_cluster_identities))
+                #print('     New clusters: {0}'.format(new_cluster_identities))
+                diff = (n_neurons - np.sum(old_cluster_identities == new_cluster_identities))/n_neurons
+                print('     Neuron {0}: {1}% difference'.format(n + 1, np.round(diff*100, 2)))
+
+            cluster_means = np.zeros([n_clusters, norm_input.shape[1]])
+            max_corr = 0
+            new_cluster = 0
+            for cluster in range(n_clusters):
+                cluster_means[cluster, :] = np.mean(X[np.where(new_cluster_identities == cluster)[0], :], axis = 0)
+                corr =  np.corrcoef(norm_input[n, :], cluster_means[cluster, :])[0, 0]
+                if corr > max_corr:
+                    max_corr = corr
+                    new_cluster = cluster
+
+            if new_cluster == cluster_identities[n]:
+                clust_diff[n] = 0
+            else:
+                clust_diff[n] = 1
+
+            hc_validation['spike_psth']['clust_diff'] = clust_diff
+            hc_validation['spike_psth']['n_neurons'] = n_neurons
+            hc_validation['spike_psth']['corr_matrix'] = corr_matrix
+            hc_validation['spike_psth']['cluster_boundaries'] = cluster_boundaries
+
+            print('HC based on spike PSTH')
+            print('Fraction of neurons with different cluster after leaving out = {0}'.format(np.sum(clust_diff)/n_neurons))
+
+
         with open('{0}{1}hier_clust_validation.pkl', 'wb') as f:
             pkl.dump(hc_validation, f)
 
-    print('Fraction of neurons with different cluster after leaving out = {0}'.format(np.sum(clust_diff)/n_neurons))
+    corr_matrix = hc_validation['spike_psth']['corr_matrix']
+    cluster_boundaries = hc_validation['spike_psth']['cluster_boundaries']
+    n_neurons = hc_validation['spike_psth']['n_neurons']
 
     plt.figure()
     plt.imshow(corr_matrix)
@@ -271,8 +349,24 @@ def validate_clustering(population_data_path, data_paths, metadata_file, n_clust
         plt.plot(list(range(n_neurons)), np.ones(n_neurons)*cb, color = 'w', linestyle = '--', linewidth = 2)
     plt.xlabel('Neuron # ordered by cluster')
     plt.ylabel('Neuron # ordered by cluster')
-    plt.title('Correlation distance')
-    plt.savefig('{0}{1}correlation.png'.format(population_data_path, sep))
+    plt.title('Correlation distance for Spike PSTH')
+    plt.colorbar(label = 'Correlation distance')
+    plt.savefig('{0}{1}Spike_psthcorrelation.png'.format(population_data_path, sep))
+
+    corr_matrix = hc_validation['dFF_psth']['corr_matrix']
+    cluster_boundaries = hc_validation['dFF_psth']['cluster_boundaries']
+    n_neurons = hc_validation['dFF_psth']['n_neurons']
+
+    plt.figure()
+    plt.imshow(corr_matrix)
+    for cb in cluster_boundaries:
+        plt.plot(np.ones(n_neurons)*cb, list(range(n_neurons)), color = 'w', linestyle = '--', linewidth = 2)
+        plt.plot(list(range(n_neurons)), np.ones(n_neurons)*cb, color = 'w', linestyle = '--', linewidth = 2)
+    plt.xlabel('Neuron # ordered by cluster')
+    plt.ylabel('Neuron # ordered by cluster')
+    plt.colorbar(label = 'Correlation distance')
+    plt.title('Correlation distance for dFF PSTH')
+    plt.savefig('{0}{1}dFF_psthcorrelation.png'.format(population_data_path, sep))
 
 
 

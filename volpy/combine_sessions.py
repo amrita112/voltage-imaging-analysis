@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from scipy import signal
+from PIL import Image
+import os
+from natsort import natsorted
 
 from subthreshold import burst_subth
 from subthreshold import isi_dist
@@ -13,6 +16,7 @@ def combine_sessions(data_path, metadata_file, volpy_results,
                         burst_snr_n_spikes = 5, # SNR calculated from bursts with number of spikes <= burst_snr_n_spikes
                         calc_burst_snr = False,
                         overwrite = False, make_plot = False,
+                        show_trial_starts = False,
                         dff_scalebar_height = 0.1, scalebar_width = 1):
 
     try:
@@ -58,14 +62,15 @@ def combine_sessions(data_path, metadata_file, volpy_results,
             output = pkl.load(f)
         frame_times_concat = output['frame_and_trial_times']['frame_times_concat']
         trial_start_frames = output['frame_and_trial_times']['trial_start_frames']
+        n_frames_per_trial = output['frame_and_trial_times']['n_frames_per_trial']
         frame_rate = output['frame_and_trial_times']['frame_rate']
         frame_rate = np.mean(list(frame_rate.values()))
 
         # Load burst data
         if calc_burst_snr:
-            isi_data = isi_dist.get_isi_data(data_path, metadata_file, overwrite = False, make_plot = False)
-            isi_data = burst_subth.get_bursts(data_path, metadata_file, isi_data, overwrite = False)
-            isi_data = burst_subth.get_burst_dff(data_path, metadata_file, isi_data, overwrite = False, make_plots = False)
+            isi_data = isi_dist.get_isi_data_session_wise(data_path, metadata_file, volpy_results)
+            isi_data = burst_subth.get_bursts_session_wise(data_path, metadata_file, isi_data)
+            isi_data = burst_subth.get_burst_dff_session_wise(data_path, metadata_file, isi_data, volpy_results)
             bursts = isi_data['bursts']
             peak_to_trough = isi_data['peak_to_trough']
 
@@ -75,7 +80,7 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         for session in sessions_to_process:
             for batch in range(batch_data[session]['n_batches']):
                 cells = cells + 1 - good_cells[session][:, batch]
-        cells = np.where(cells == 0)[0]
+        cells = np.where(cells == 0)[0] # Cells that are in good cells for all sessions, all batches
         n_cells = len(cells)
 
         dFF = {cell: [] for cell in cells}
@@ -85,16 +90,21 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         spike_frames = {cell: [] for cell in cells}
         total_batches = np.sum([dict['n_batches'] for dict in list(batch_data.values())])
         snr = np.zeros([n_cells, total_batches])
-        burst_snr = np.zeros(n_cells)
+        burst_snr = np.zeros([n_cells, total_batches])
         tvec = frame_times_concat
         trial_start_frames_concat = []
         n_frames_total = 0
         n_batches_total = 0
 
+        trial_tiff_image_path = metadata['trial_tiff_image_path']
+        fnames = os.listdir(trial_tiff_image_path[session])
+        fnames = natsorted(fnames)
+        fnames = ['{0}{1}{2}'.format(trial_tiff_image_path[session], sep, fname) for fname in fnames if fname.endswith('.tif')]
 
         for session in sessions_to_process:
             print('     Session {0}'.format(session))
             n_batches = batch_data[session]['n_batches']
+            n_frames_session = 0
 
             for batch in range(n_batches):
                 print('         Batch {0} of {1}'.format(batch + 1, n_batches))
@@ -103,8 +113,8 @@ def combine_sessions(data_path, metadata_file, volpy_results,
                 cell_idx = 0
                 for cell in cells:
                     spike_frames_batch = estimates['spikes'][cell]
-                    spike_times[cell] = np.append(spike_times[cell], frame_times_concat[spike_frames_batch + n_frames_total])
-                    spike_frames[cell] = np.append(spike_frames[cell], spike_frames_batch + n_frames_total)
+                    spike_times[cell] = np.append(spike_times[cell], frame_times_concat[spike_frames_batch + n_frames_total + n_frames_session])
+                    spike_frames[cell] = np.append(spike_frames[cell], spike_frames_batch + n_frames_total + n_frames_session)
 
                     dFF[cell] = np.append(dFF[cell], estimates['dFF'][cell])
                     F0[cell] = np.append(F0[cell], estimates['F0'][cell])
@@ -115,9 +125,27 @@ def combine_sessions(data_path, metadata_file, volpy_results,
                     cell_idx += 1
 
                 n_batches_total += 1
-                n_frames_total += len(estimates['dFF'][0])
+                n_frames_session += len(estimates['dFF'][0])
+
+                t1 = int(batch_data[session]['first_trials'][batch])
+                t2 = int(batch_data[session]['last_trials'][batch])
+                sum_trial_frames = np.sum([n_frames_per_trial[session][trial] for trial in range(t1, t2)])
+
+                if not sum_trial_frames == len(estimates['dFF'][0]):
+                    print('             {0} frames'.format(len(estimates['dFF'][0])))
+                    print('             {0} trials'.format(t2 - t1))
+                    print('             {0} frame numbers'.format(sum_trial_frames))
+                    for trial in range(t1, t2):
+                        print('                 Trial {0}: {1}'.format(trial, fnames[trial]))
+                        print('                     {0}'.format(n_frames_per_trial[session][trial]))
+                        im = Image.open(fnames[trial])
+                        try:
+                            print('                     {0} frames in tiff file'.format(im.n_frames))
+                        except:
+                            print('                     Not able to find number of frames in tiff file')
 
             trial_start_frames_concat = np.append(trial_start_frames_concat, trial_start_frames[session] + n_frames_total)
+            n_frames_total += n_frames_session
 
         trial_start_frames_concat = trial_start_frames_concat.astype(int)
         if calc_burst_snr:
@@ -144,7 +172,12 @@ def combine_sessions(data_path, metadata_file, volpy_results,
                     cell_idx += 1
 
 
-        assert(len(tvec) == n_frames_total)
+        if not len(tvec) == len(dFF[cells[0]]):
+            print('frame_times_concat is not the same length as dFF')
+            print(len(tvec))
+            print(len(dFF[cells[0]]))
+        assert(len(tvec) == len(dFF[cells[0]]))
+
         combined_data = {
             'cells':                     cells,
             'dFF':                       dFF,
@@ -194,11 +227,13 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         plt.text(dff_right + 1, dff_bottom + dff_scalebar_height/2, '-{0}% \ndF/F'.format(int(dff_scalebar_height*100)))
 
         # Plot trial starts
-        for trial_start in trial_start_frames_concat:
-            trial_start_time = frame_times_concat[int(trial_start)]
+        if show_trial_starts:
             [y0, y1] = plt.gca().get_ylim()
-            plt.plot(np.ones(10)*trial_start_time, np.linspace(y0, y1, 10),
-                        color = 'gray', linestyle = '--', linewidth = 0.8)
+            for trial_start_frame in trial_start_frames_concat:
+                trial_start_time = frame_times_concat[int(trial_start_frame)]
+
+                plt.plot(np.ones(10)*trial_start_time, np.linspace(y0, y1, 10),
+                            color = 'gray', linestyle = '--', linewidth = 0.8)
 
         plt.xlabel('Time (s)')
         plt.ylabel('Cell # ')

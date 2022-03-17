@@ -5,7 +5,76 @@ import matplotlib.pyplot as plt
 
 from volpy import quality_control
 
-def get_isi_data(data_path, metadata_file, overwrite = False,
+def get_isi_data_session_wise(data_path, metadata_file, volpy_results,
+                                max_isi_s = 0.025):
+
+    print('Analyzing all ISIs < {0}s'.format(max_isi_s))
+
+    # Load metadata
+    with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
+        metadata = pkl.load(f)
+    isi_data = {}
+    sessions_to_process = metadata['sessions_to_process']
+    batch_data = metadata['batch_data']
+    plots_path = metadata['plots_path']
+    total_batches = np.sum([dict['n_batches'] for dict in list(batch_data.values())])
+
+    # Load frame times
+    frame_times_file = metadata['frame_times_file']
+    with open('{0}{1}{2}'.format(data_path, sep, frame_times_file), 'rb') as f:
+        output = pkl.load(f)
+    frame_times_concat = output['frame_and_trial_times']['frame_times_concat']
+
+    # Get QC data
+    good_cells = volpy_results['good_cells']
+    cells = np.zeros(good_cells[sessions_to_process[0]].shape[0])
+    for session in sessions_to_process:
+        for batch in range(batch_data[session]['n_batches']):
+            cells = cells + 1 - good_cells[session][:, batch]
+    cells = np.where(cells == 0)[0] # Cells that are in good cells for all sessions, all batches
+    n_cells = len(cells)
+
+    n_frames_total = 0
+    n_batches_total = 0
+
+    for session in sessions_to_process:
+        print('     Session {0}'.format(session))
+        n_batches = batch_data[session]['n_batches']
+        n_frames_session = 0
+
+        isi_data[session] = {}
+
+        for batch in range(n_batches):
+            print('         Batch {0} of {1}'.format(batch + 1, n_batches))
+            estimates = volpy_results[session][batch]['vpy']
+            isi_data[session][batch] = {}
+
+            # For each good cell, for each spike, get time to nearest spike
+            for cell in range(n_cells):
+
+                cell_id = cells[cell]
+                spike_frames_batch = estimates['spikes'][cell]
+                spike_times_batch = frame_times_concat[spike_frames_batch + n_frames_total + n_frames_session]
+                isis_batch = np.diff(spike_times_batch)*1000
+                short_isis_batch = isis_batch[isis_batch < max_isi_s*1000]
+                [bimodal, thresh_ms] = bimodal_isi(short_isis_batch)
+                isi_data[session][batch][cell_id] = {'isis': isis_batch,
+                                     'short_isis': short_isis_batch,
+                                     'max_isi_s': max_isi_s,
+                                     'bimodal': bimodal,
+                                     'thresh_ms': thresh_ms
+                }
+
+            n_batches_total += 1
+            n_frames_session += len(estimates['dFF'][0])
+
+        n_frames_total += n_frames_session
+
+
+    return isi_data
+
+def get_isi_data(data_path, metadata_file, volpy_results,
+                 overwrite = False,
                  make_plot = False,
                  max_isi_s = 0.025, n_bins = 10, log_scale = False,
                  n_rows = 3, figsize = [15, 5]):
@@ -31,16 +100,13 @@ def get_isi_data(data_path, metadata_file, overwrite = False,
         batch_data = metadata['batch_data']
         plots_path = metadata['plots_path']
 
-        # Load volpy results + QC data
-        volpy_results_file = metadata['volpy_results_file']
-        with open('{0}{1}{2}'.format(data_path, sep, volpy_results_file), 'rb') as f:
-            volpy_results = pkl.load(f)
+        # Get QC data
         good_cells = volpy_results['good_cells']
         cells = np.zeros(good_cells[sessions_to_process[0]].shape[0])
         for session in sessions_to_process:
             for batch in range(batch_data[session]['n_batches']):
                 cells = cells + 1 - good_cells[session][:, batch]
-        cells = np.where(cells == 0)[0]
+        cells = np.where(cells == 0)[0] # Cells that are in good cells for all sessions, all batches
         n_cells = len(cells)
 
         # Make figure (number of subplots = number of good cells)
