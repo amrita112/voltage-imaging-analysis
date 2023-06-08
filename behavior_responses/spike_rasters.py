@@ -27,7 +27,8 @@ def plot_spike_rasters(data_path, metadata_file, bin_size_ms = 10, snr_thresh = 
     sample_end_time = process_bpod_data.get_sample_end_time(data_path, metadata_file)
     sample_start_time = process_bpod_data.get_sample_start_time(data_path, metadata_file)
     psth = get_psth(trial_types_left_right_cor_inc, spike_times_trials, bin_size_ms = bin_size_ms)
-    tvec_trial = psth['tvec'] - go_cue_time + sample_start_time
+    #tvec_trial = psth['tvec'] - go_cue_time + sample_start_time
+    tvec_trial = psth['tvec'] - go_cue_time
 
     roi_arrays = get_roi_arrays.get_roi_arrays(data_path, metadata_file)
     n_cells = roi_arrays[sessions_to_process[0]].shape[0]
@@ -36,10 +37,11 @@ def plot_spike_rasters(data_path, metadata_file, bin_size_ms = 10, snr_thresh = 
 
         print('Cell {0}'.format(cell + 1))
 
-        fig, ax = plt.subplots(nrows = 2, ncols = 1, constrained_layout = True, sharex = True, figsize = [8, 10])
-        ax[1].set_xlabel('Time from go cue (s)')
-        ax[0].set_ylabel('Trial # (excl. EL trials and low SNR trials)')
-        ax[1].set_ylabel('Firing rate (Hz)')
+        fig, ax = plt.subplots(nrows = 2, ncols = 1, constrained_layout = True, sharex = True, figsize = [4, 5])
+        ax[1].set_xlabel('Time from go cue (s)', fontsize = 20)
+        #ax[0].set_ylabel('Trial # (excl. EL trials and low SNR trials)')
+        ax[0].set_ylabel('Trial #', fontsize = 20)
+        ax[1].set_ylabel('Spike rate (Hz)', fontsize = 20)
 
         # Plot spike raster for each cell
         level = 0
@@ -71,14 +73,16 @@ def plot_spike_rasters(data_path, metadata_file, bin_size_ms = 10, snr_thresh = 
 
         # Plot dashed line to show sample end time and go cue time
         [y0, y1] = ax[0].get_ylim()
-        ax[0].plot(np.ones(10)*(sample_end_time - go_cue_time + sample_start_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-        ax[0].plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+        ax[0].plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 1, color = 'k')
+        ax[0].plot(np.ones(10)*(sample_start_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 1, color = 'k')
+        ax[0].plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 1, color = 'k')
+        ax[0].tick_params(axis = 'both', labelsize = 18)
 
         [y0, y1] = ax[1].get_ylim()
-        ax[1].plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-        ax[1].plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-
-        ax[0].set_title('Cell {0}'.format(cell + 1))
+        ax[1].plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 1, color = 'k')
+        ax[1].plot(np.ones(10)*(sample_start_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 1, color = 'k')
+        ax[1].plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 1, color = 'k')
+        ax[1].tick_params(axis = 'both', labelsize = 18)
         plt.savefig('{0}{1}Cell_{2}_{3}.png'.format(spike_rasters_path, sep, cell + 1, suffix))
 
 
@@ -178,6 +182,7 @@ def get_psth(trial_types_left_right_cor_inc, spike_times_trial, bin_size_ms = 10
 
     for trial_type in ['left_corr', 'right_corr', 'left_inc', 'right_inc']:
         for cell in range(n_cells):
+
             psth[cell][trial_type]['all_trials'] = psth[cell][trial_type]['all_trials'][:, 1:]
             psth[cell][trial_type]['mean'] = np.mean(psth[cell][trial_type]['all_trials'], axis = 1)*1000/bin_size_ms
             n_trials = psth[cell][trial_type]['all_trials'].shape[1]

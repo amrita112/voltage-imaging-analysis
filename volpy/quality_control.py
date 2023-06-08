@@ -4,7 +4,7 @@ import numpy as np
 
 from segmentation import get_roi_arrays
 
-def perform_quality_control(data_path, metadata_file, volpy_results, overwrite = False):
+def perform_quality_control(data_path, metadata_file, volpy_results, volpy_results_file_user = '', overwrite = False):
 
     if not 'good_cells' in list(volpy_results.keys()):
         print('Could not find quality control results')
@@ -33,7 +33,10 @@ def perform_quality_control(data_path, metadata_file, volpy_results, overwrite =
             metadata = pkl.load(f)
 
         volpy_results['good_cells'] = good_cells
-        volpy_results_file = metadata['volpy_results_file']
+        if len(volpy_results_file_user) > 0:
+            volpy_results_file = volpy_results_file_user
+        else:
+            volpy_results_file = metadata['volpy_results_file']
         with open('{0}{1}{2}'.format(data_path, sep, volpy_results_file), 'wb') as f:
             pkl.dump(volpy_results, f)
 

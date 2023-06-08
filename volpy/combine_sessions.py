@@ -16,7 +16,7 @@ def combine_sessions(data_path, metadata_file, volpy_results,
                         burst_snr_n_spikes = 5, # SNR calculated from bursts with number of spikes <= burst_snr_n_spikes
                         calc_burst_snr = False,
                         overwrite = False, make_plot = False,
-                        show_trial_starts = False,
+                        show_trial_starts = False, save_path = None, filename_save = '',
                         dff_scalebar_height = 0.1, scalebar_width = 1):
 
     try:
@@ -192,7 +192,10 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         }
 
         volpy_results['combined_data'] = combined_data
-        volpy_results_file = metadata['volpy_results_file']
+        if len(filename_save) > 0:
+            volpy_results_file = filename_save
+        else:
+            volpy_results_file = metadata['volpy_results_file']
         with open('{0}{1}{2}'.format(data_path, sep, volpy_results_file), 'wb') as f:
             pkl.dump(volpy_results, f)
 
@@ -238,8 +241,12 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         plt.xlabel('Time (s)')
         plt.ylabel('Cell # ')
         plt.yticks(ticks = levels, labels = cells + 1)
-        plt.savefig('{0}{1}dFF_spikes_combined.png'.format(plots_path, sep))
+        if save_path == None:
+            save_path = '{0}{1}dFF_spikes_combined.png'.format(plots_path, sep)
+        plt.savefig(save_path)
 
+    return combined_data
+    
 def signal_filter(sg, freq, fr, order=3, mode='high'):
     """
     Function for high/low passing the signal with butterworth filter

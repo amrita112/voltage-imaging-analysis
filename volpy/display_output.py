@@ -15,7 +15,7 @@ from segmentation import get_roi_arrays
 def display_output(data_path, metadata_file, volpy_results,
                 dff_scalebar_height = 0.1, scalebar_width = 1,
                 disp_dFF = True, disp_bleaching = True, disp_spatial_filters = True,
-                disp_snr = True, cells_disp = None):
+                disp_snr = True, cells_disp = [], cell_order = [], save_path_dff = None):
 
     print('Making figures')
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
@@ -35,8 +35,6 @@ def display_output(data_path, metadata_file, volpy_results,
 
     sessions_to_process = metadata['sessions_to_process']
     n_cells = roi_arrays[sessions_to_process[0]].shape[0]
-    if cells_disp == None:
-        cells_disp = list(range(n_cells))
 
     photobleaching_trace = {cell: [] for cell in range(n_cells)}
     full_trace = {cell: [] for cell in range(n_cells)}
@@ -123,7 +121,8 @@ def display_output(data_path, metadata_file, volpy_results,
     if disp_dFF:
         plt.figure(figsize = [n_frames_total/5000, n_cells*2])
         levels = [0]
-        cell_order = np.argsort(np.mean(snr, axis = 0))
+        if len(cell_order) == 0:
+            cell_order = np.argsort(np.mean(snr, axis = 0))
         colors = cm.Greens(np.mean(snr, axis = 0)/max(np.mean(snr, axis = 0)))
         for cell in range(n_cells):
             if cell in cells_disp:
@@ -151,8 +150,10 @@ def display_output(data_path, metadata_file, volpy_results,
         plt.text(dff_right + 1, dff_bottom + dff_scalebar_height/2, '-{0}% \ndF/F'.format(int(dff_scalebar_height*100)))
         plt.xlabel('Time (s)')
         plt.ylabel('Cell # (in order of decreasing SNR)')
-        plt.yticks(ticks = levels, labels = cell_order[cells_disp] + 1)
-        plt.savefig('{0}{1}dFF.png'.format(plots_path, sep))
+        plt.yticks(ticks = levels, labels = [cell_order[cell] + 1 for cell in cells_disp], fontsize = 20)
+        if save_path_dff == None:
+            save_path_dff = '{0}{1}dFF.png'.format(plots_path, sep)
+        plt.savefig(save_path_dff)
 
     # Display spatial filters and spike shapes
     if disp_spatial_filters:

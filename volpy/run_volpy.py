@@ -10,14 +10,20 @@ from caiman.source_extraction.volpy.volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
 
 def run_volpy(data_path, metadata_file, overwrite = False,
-                hp_freq_pb = 0.1,
+                hp_freq_pb = 0.1, filename_save = '',
                 reuse_spatial_filters = True, batch_reuse = 0,
+                context_size = 35, censor_size = 12, ridge_bg = 0.01,
+                exclude_cells_from_background = False, background_cell_censor_size = 8,
+                visualize_ROI = False
                 ):
 
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)
 
-    volpy_results_file = metadata['volpy_results_file']
+    if len(filename_save) < 1:
+        volpy_results_file = metadata['volpy_results_file']
+    else:
+        volpy_results_file = filename_save
     try:
         with open('{0}{1}{2}'.format(data_path, sep, volpy_results_file), 'rb') as f:
             volpy_results = pkl.load(f)
@@ -84,14 +90,20 @@ def run_volpy(data_path, metadata_file, overwrite = False,
                     'overlaps': (24, 24),
                     'max_deviation_rigid': 3,
                     'border_nan': 'copy',
-                    'method': 'SpikePursuit'
+                    'method': 'SpikePursuit',
+                    'context_size': context_size,
+                    'censor_size': censor_size,
+                    'ridge_bg': ridge_bg,
+                    'exclude_cells_from_background': exclude_cells_from_background,
+                    'background_cell_censor_size': background_cell_censor_size,
+                    'visualize_ROI': visualize_ROI
                 }
 
                 opts = volparams(params_dict=opts_dict)
                 c, dview, n_processes = cm.cluster.setup_cluster(
                     backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
                 vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts,
-                                hp_freq_pb = hp_freq_pb
+                                hp_freq_pb = hp_freq_pb, context_size = context_size, censor_size = censor_size, ridge_bg = ridge_bg,
                                 )
                 vpy.fit(n_processes=n_processes, dview=dview)
                 dview.terminate()
@@ -102,7 +114,8 @@ def run_volpy(data_path, metadata_file, overwrite = False,
                 volpy_results[session][batch] = {
                     'vpy': vpy.estimates,
                     'trials': list(range(first_trial, last_trial)),
-                    'hp_freq_pb': hp_freq_pb
+                    'hp_freq_pb': hp_freq_pb,
+                    'parameters': vpy.params.volspike
                 }
 
 

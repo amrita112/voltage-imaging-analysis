@@ -13,6 +13,7 @@ sample_end = zeros(n_trials, 1);
 go_cue_start = zeros(n_trials, 1);
 go_cue_end = zeros(n_trials, 1);
 trial_start_times = zeros(n_trials, 1);
+trial_settings = bpod_data.TrialSettings;
 
 for trial = 1:n_trials
     trial_data = bpod_data.RawEvents.Trial(trial);
@@ -28,11 +29,11 @@ for trial = 1:n_trials
     catch
         early_lick_delay(trial) = 0;
     end
-    sample_start(trial) = trial_data.States.SampleOn1(1);
-    sample_end(trial) = trial_data.States.SampleOn1(2);
-    go_cue_start(trial) = trial_data.States.ResponseCue(1);
-    go_cue_end(trial) = trial_data.States.ResponseCue(2);
-    trial_start_times(trial) = bpod_data.TrialStartTimestamp(trial);
+    %sample_start(trial) = trial_data.States.SampleOn1(1);
+    %sample_end(trial) = trial_data.States.SampleOn1(2);
+    %go_cue_start(trial) = trial_data.States.ResponseCue(1);
+    %go_cue_end(trial) = trial_data.States.ResponseCue(2);
+    %trial_start_times(trial) = bpod_data.TrialStartTimestamp(trial);
 end
 bpod_data_struct.left_right = left_right;
 bpod_data_struct.cor_inc = cor_inc;
@@ -43,8 +44,8 @@ bpod_data_struct.sample_end = sample_end;
 bpod_data_struct.go_cue_start = go_cue_start;
 bpod_data_struct.go_cue_end = go_cue_end;
 bpod_data_struct.trial_start_times = trial_start_times;
+bpod_data_struct.trial_settings = trial_settings;
 
 save(bpod_data_save_path, 'bpod_data_struct')
 
-return 
-
+return

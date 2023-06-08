@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-def load_data_session(data_path, metadata_file):
+def load_data_session(data_path, metadata_file, volpy_results_file_user = ''):
 
     print('     {0}'.format(data_path))
 
@@ -145,7 +145,11 @@ def load_data_session(data_path, metadata_file):
                 roi_array = pkl.load(f)
             n_rois = roi_array[sessions_to_process[0]].shape[0]
 
-        volpy_results_file = metadata['volpy_results_file']
+        if len(volpy_results_file_user) > 0:
+            volpy_results_file = volpy_results_file_user
+            print('       Loading results from {0}'.format(volpy_results_file))
+        else:
+            volpy_results_file = metadata['volpy_results_file']
         with open('{0}{1}{2}'.format(data_path, sep, volpy_results_file), 'rb') as f:
             volpy_results = pkl.load(f)
 

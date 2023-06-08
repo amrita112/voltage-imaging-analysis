@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from behavior_responses import process_bpod_data
+from behavior_responses import spike_rasters
 from pre_processing import trial_tiff_stacks
 
 def main(data_path, metadata_file, bin_size_psth_ms = 50, snr_thresh = 5, suffix = ''):

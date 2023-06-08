@@ -21,6 +21,8 @@ def get_daq_data(data_path, metadata_file, overwrite = False):
         trial_start_samples = daq_data['trial_start_samples']
         frame_samples = daq_data['frame_samples']
         led_trig = daq_data['led_trig']
+        cam_frame_samples = daq_data['cam_frame_samples']
+        cam_frame_times_trials = daq_data['cam_frame_times_trials']
         print('DAQ data loaded')
     except:
         overwrite = True
@@ -31,16 +33,19 @@ def get_daq_data(data_path, metadata_file, overwrite = False):
         sessions_to_process = metadata['sessions_to_process'].copy()
         n_sessions = len(sessions_to_process)
         daq_file_paths = metadata['daq_file_paths']
-        #daq_sample_rate = metadata['daq_sample_rate']
+        daq_sample_rate = metadata['daq_sample_rate']
         trial_start_trig_channel = metadata['trial_start_trig_channel']
         vcam_trig_out_channel = metadata['vcam_trig_out_channel']
         vcam_trig_in_channel = metadata['vcam_trig_in_channel']
         led_trig_channel = metadata['led_trig_channel']
         led_lag_samples = metadata['led_lag_samples']
+        cam_frame_trig_channel = 'Analog2'
 
         trial_start_samples = {}
         frame_samples = {}
         led_trig = {}
+        cam_frame_samples = {}
+        cam_frame_times_trials = {}
 
         if n_sessions > 1:
             fig, ax = plt.subplots(nrows = n_sessions, ncols = 1)
@@ -126,11 +131,41 @@ def get_daq_data(data_path, metadata_file, overwrite = False):
             #tvec = np.linspace(0, n_samples/daq_sample_rate, n_samples)
             #frame_times[session] = tvec[frame_samples[session]]
 
+            # Get video camera frame times
+
+            if cam_frame_trig_channel == 'Analog2':
+                cam_frame_trig = daq_data['analogScans'][1, :]
+            else:
+                print('\'cam_frame_trig_channel\' is not Analog2. Change')
+
+            med = np.min(cam_frame_trig) + (np.max(cam_frame_trig) - np.min(cam_frame_trig))*0.8
+            cam_frame_trig[cam_frame_trig <= med] = np.zeros(np.sum(cam_frame_trig <= med))
+            cam_frame_trig[cam_frame_trig > med] = np.ones(np.sum(cam_frame_trig > med))
+            d = np.diff(cam_frame_trig)
+            cam_frame_samples[session] = (np.where(d == 1)[0] + 1).astype(int)
+
+            #ax[session_no].plot(cam_frame_trig, label = 'Vcam trig out')
+            print('Session {0}: {1} camera triggers'.format(session, len(cam_frame_samples[session])))
+
+            cam_frame_times_trials[session] = {}
+            n_trials = len(trial_start_samples[session])
+
+            for trial_no in range(n_trials):
+
+                times = cam_frame_samples[session]
+                times = times[times >= trial_start_samples[session][trial_no]]
+                if trial_no < n_trials - 1:
+                    times = times[times < trial_start_samples[session][trial_no + 1]]
+
+                cam_frame_times_trials[session][trial_no] = times/daq_sample_rate
+
             ax[session_no].legend()
 
         daq_data = {    'trial_start_samples': trial_start_samples,
                         'frame_samples': frame_samples,
                         'led_trig': led_trig,
+                        'cam_frame_samples': cam_frame_samples,
+                        'cam_frame_times_trials': cam_frame_times_trials
             }
         output['daq_data'] = daq_data
         with open('{0}{1}{2}'.format(data_path, sep, frame_times_file), 'wb') as f:

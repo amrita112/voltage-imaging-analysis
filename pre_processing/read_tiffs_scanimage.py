@@ -104,6 +104,9 @@ def main(data_path, metadata_file, daq_data, overwrite = False, n_trials_process
                 else:
                     s1 = n_samples
 
+                if f0 == len(fs):
+                    continue
+
                 if fs[f0] < s1: # Frame trigger occurs in trial, so trial was imaged
 
                     file_no += 1

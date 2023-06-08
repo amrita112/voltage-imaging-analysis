@@ -1,6 +1,7 @@
 from os.path import sep
 import numpy as np
 import pickle as pkl
+import matplotlib.pyplot as plt
 
 def get_trial_types(data_path, metadata_file):
 
@@ -39,7 +40,7 @@ def get_trial_types(data_path, metadata_file):
 
     return trial_types_left_right_cor_inc
 
-def get_go_cue_time(data_path, metadata_file, var_thresh_s = 0.05):
+def get_go_cue_time(data_path, metadata_file, var_thresh_s = 0.06):
 
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)
@@ -60,12 +61,21 @@ def get_go_cue_time(data_path, metadata_file, var_thresh_s = 0.05):
             if trial_types[session][trial] > 0:
                 go_cue_time_all = np.append(go_cue_time_all, go_cue_time[session][trial])
 
+    if np.var(go_cue_time_all) >= var_thresh_s:
+        plt.figure()
+        plt.plot(go_cue_time_all)
+        plt.xlabel('Trial #')
+        plt.ylabel('Go cue time (s)')
+        plt.title('Variance of go cue time > {0}s'.format(var_thresh_s))
+
+        print(go_cue_time_all)
+
     assert(np.var(go_cue_time_all) < var_thresh_s)
 
     return np.median(go_cue_time_all)
 
 
-def get_sample_end_time(data_path, metadata_file, var_thresh_s = 0.05):
+def get_sample_end_time(data_path, metadata_file, var_thresh_s = 0.06):
 
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)
@@ -91,7 +101,7 @@ def get_sample_end_time(data_path, metadata_file, var_thresh_s = 0.05):
     return np.median(sample_end_time_all)
 
 
-def get_sample_start_time(data_path, metadata_file, var_thresh_s = 0.05):
+def get_sample_start_time(data_path, metadata_file, var_thresh_s = 0.06):
 
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)

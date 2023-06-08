@@ -39,6 +39,10 @@ def get_bpod_info(data_path, metadata_file, overwrite = False):
         with open('{0}{1}{2}'.format(data_path, sep, frame_times_file), 'rb') as f:
             output = pkl.load(f)
         trial_start_frames = output['frame_and_trial_times']['trial_start_frames']
+        if metadata['scanimage']:
+            trial_nos_imaged = output['frame_and_trial_times']['trial_nos_imaged']
+            trial_start_samples = output['daq_data']['trial_start_samples']
+            daq_sample_rate = metadata['daq_sample_rate']
 
         # Load Bpod data
         bpod_data_mat_file = metadata['bpod_data_mat_file']
@@ -73,7 +77,6 @@ def get_bpod_info(data_path, metadata_file, overwrite = False):
                 print('Bpod trial numbers in session {0} not correct. Check DAQ data figure and re-enter trial numbers.'.format(session))
                 print('{0} trial start frames'.format(n_trials_session))
                 print('{0} trials according to bpod trial numbers'.format(bpod_trial_numbers[session][1] - bpod_trial_numbers[session][0]))
-                return
 
             # Get trial types - left/right, correct/incorrect, early lick sample, early lick delay
             left_right[session] = left_right_all[bpod_trial_numbers[session][0]:bpod_trial_numbers[session][1]]
@@ -84,6 +87,31 @@ def get_bpod_info(data_path, metadata_file, overwrite = False):
             sample_end_time[session] = sample_end_time_all[bpod_trial_numbers[session][0]:bpod_trial_numbers[session][1]]
             go_cue_start_time[session] = go_cue_start_time_all[bpod_trial_numbers[session][0]:bpod_trial_numbers[session][1]]
             go_cue_end_time[session] = go_cue_end_time_all[bpod_trial_numbers[session][0]:bpod_trial_numbers[session][1]]
+
+            if metadata['scanimage']:
+
+                left_right[session] = left_right[session][(trial_nos_imaged[session]).astype(int)]
+                cor_inc[session] = cor_inc[session][(trial_nos_imaged[session]).astype(int)]
+                early_lick_sample[session] = early_lick_sample[session][(trial_nos_imaged[session]).astype(int)]
+                early_lick_delay[session] = early_lick_delay[session][(trial_nos_imaged[session]).astype(int)]
+                sample_start_time[session] = sample_start_time[session][(trial_nos_imaged[session]).astype(int)]
+                sample_end_time[session] = sample_end_time[session][(trial_nos_imaged[session]).astype(int)]
+                go_cue_start_time[session] = go_cue_start_time[session][(trial_nos_imaged[session]).astype(int)]
+                go_cue_end_time[session] = go_cue_end_time[session][(trial_nos_imaged[session]).astype(int)]
+
+                trial_start_times_daq = (trial_start_samples[session] - trial_start_samples[session][0])/daq_sample_rate
+                trial_start_times_bpod = trial_start_times[bpod_trial_numbers[session][0]:bpod_trial_numbers[session][1]]
+                trial_start_times_bpod = trial_start_times_bpod - trial_start_times_bpod[0]
+                trial_start_times_bpod = np.reshape(trial_start_times_bpod, [-1])
+
+                plt.figure()
+                plt.plot(np.diff(trial_start_times_daq), label = 'DAQ ITIs')
+                plt.plot(np.diff(trial_start_times_bpod), label = 'Bpod ITIs')
+                plt.title(data_path)
+                plt.legend()
+                plt.xlabel('Trial #')
+                plt.ylabel('ITI (s)')
+
 
         bpod_data['bpod_trial_numbers'] = bpod_trial_numbers
         bpod_data['left_right'] = left_right

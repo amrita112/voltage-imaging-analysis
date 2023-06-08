@@ -18,7 +18,6 @@ def get_n_frames_per_trial(data_path, metadata_file, overwrite = False):
         output = pkl.load(f)
     try:
         n_frames_per_trial = output['frame_and_trial_times']['n_frames_per_trial']
-        print('Loaded number of frames per trial')
     except:
         print('Could not load number of frames per trial')
         overwrite = True

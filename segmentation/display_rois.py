@@ -4,14 +4,14 @@ import pickle as pkl
 import matplotlib.pyplot as plt
 import numpy as np
 
-def display_rois(data_path, metadata_file,
+def display_rois(data_path, metadata_file, max_x, max_y, min_x, min_y, density,
                  flip_vertical = False, flip_horizontal = False,
                  scalebar_width_um = 100, scalebar_text = True,
                  roi_color = 'r', roi_width = 1.5,  roi_colors = [],
-                 fig_width = 15,
+                 fig_width = 15, dpi = 'exact', show_title = False,
                  save_fig = False, save_path = None, title = 'seg_image_annotated.tif',
                  cells = [], cell_labels = [],
-                 show_rois = True,):
+                 show_rois = True, show_density = False):
 
     # Load metadata
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
@@ -47,13 +47,14 @@ def display_rois(data_path, metadata_file,
             im_array = im_array_temp.copy()
         plt.figure(figsize = (fig_width, fig_width*h/w))
         plt.imshow(im_array, cmap = 'Greys_r')
+        plt.axis('off')
 
         # For each cell roi, draw mask boundary
         if show_rois:
             if len(cells) == 0:
                 cell_ids = list(rois[session].keys())
             else:
-                cell_ids = [cell for cell in list(rois.keys()) if cell - 1 in cells]
+                cell_ids = [cell for cell in list(rois[session].keys()) if cell - 1 in cells]
             no_cells = len(cell_ids)
 
             for cell in range(no_cells):
@@ -76,7 +77,7 @@ def display_rois(data_path, metadata_file,
                 plt.plot(vertices[:, 1], vertices[:, 0], color = roi_color, linewidth = roi_width)
                 text_x = np.mean(vertices[:, 1]) + w*0.01
                 text_y = np.mean(vertices[:, 0])
-                plt.text(text_x, text_y, '{0}'.format(cell_label), color = 'w',
+                plt.text(text_x, text_y, '{0}'.format(int(cell_label)), color = 'w',
                 fontsize = 10
                 #transform = plt.gca().transAxes
                 )
@@ -92,11 +93,28 @@ def display_rois(data_path, metadata_file,
         plt.plot(x, y, linewidth = 10, color = 'w')
         if scalebar_text:
             plt.text(text_x, text_y, '{0} um'.format(scalebar_width_um), color = 'w')
-        plt.title('Session {0}'.format(session))
-        plt.axis('off')
+        if show_title:
+            plt.title('Session {0}'.format(session))
+
+        if show_density:
+
+            plt.plot(np.linspace(min_x[session], max_x[session], 10), np.ones(10)*min_y[session], color = 'r', linewidth = 0.8, linestyle = '--')
+            plt.plot(np.linspace(min_x[session], max_x[session], 10), np.ones(10)*max_y[session], color = 'g', linewidth = 0.8, linestyle = '--')
+            plt.plot(np.ones(10)*min_x[session], np.linspace(min_y[session], max_y[session], 10), color = 'b', linewidth = 0.8, linestyle = '--')
+            plt.plot(np.ones(10)*max_x[session], np.linspace(min_y[session], max_y[session], 10), color = 'y', linewidth = 0.8, linestyle = '--')
+            y_ext = max_y[session] - min_y[session]
+            x_ext = max_x[session] - min_x[session]
+            plt.text(min_x[session], min_y[session] + y_ext/2, '{0} um'.format(y_ext*um_per_px), color = 'w')
+            plt.text(min_y[session], min_x[session] + x_ext/2, '{0} um'.format(x_ext*um_per_px), color = 'w')
+            plt.text(w*0.6, h*0.1, '{0} ROIs/nm^2'.format(density[session]), color = 'w')
 
         if save_path == None:
             save_path = data_path
 
+        if dpi == 'exact':
+            dpi = w/fig_width
+        else:
+            dpi = 'figure'
+
         if save_fig:
-            plt.savefig('{0}{1}Session{2}_{3}'.format(save_path, sep, session, title))
+            plt.savefig('{0}{1}{2}'.format(save_path, sep, title), dpi = dpi)

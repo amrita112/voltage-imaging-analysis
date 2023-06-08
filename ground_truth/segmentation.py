@@ -66,12 +66,14 @@ def make_seg_images(data_path, sub_ids, cells, cell_folders, movies, n_files_seg
                     ax_plot.imshow(seg_images[sid][cell][movie])
                     ax_plot.set_title('Movie {0}'.format(movie))
                     ax_plot.set_ylabel('Cell {0}'.format(cell))
-                    try:
-                        vertices = roi_arrays[sid][cell][movie]
-                        ax_plot.plot(vertices[:, 1], vertices[:, 0], color = 'r', linewidth = 1)
-                    except KeyError:
-                        continue
+                    if disp_rois:
+                        try:
+                            vertices = roi_arrays[sid][cell][movie]
+                            ax_plot.plot(vertices[:, 1], vertices[:, 0], color = 'r', linewidth = 1)
+                        except KeyError:
+                            continue
 
+            fig.suptitle('ANM {0}'.format(sid))
             plt.savefig('{0}{1}ANM{2}_seg_imgs.png'.format(data_path, sep, sid))
     return seg_images
 

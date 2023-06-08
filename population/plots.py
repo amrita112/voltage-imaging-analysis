@@ -62,46 +62,60 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
     if save_fig:
         plt.savefig(save_path)
 
-def plot_single_cell_spike_psth(psth_cell_left_corr, psth_cell_right_corr, left_corr_trial_nos, right_corr_trial_nos, tvec, ):
+def plot_single_cell_spike_psth(psth_cell_left_corr, psth_cell_right_corr, left_corr_trial_nos, right_corr_trial_nos, tvec, go_cue_time, sample_end_time, sample_start_time, axes = None, color_spikes = 'k', save_plot = False):
 
-    fig, ax = plt.subplots(nrows = 2, ncols = 1, constrained_layout = True, sharex = True, figsize = [8, 10])
-    ax[1].set_xlabel('Time from go cue (s)')
-    ax[0].set_ylabel('Trial # (correct trials only)')
-    ax[1].set_ylabel('Firing rate (Hz)')
+    if axes == None:
+        fig, ax = plt.subplots(nrows = 2, ncols = 1, constrained_layout = True, sharex = True, figsize = [8, 10])
+        ax_raster = ax[0]
+        ax_psth = ax[1]
+    else:
+        ax_raster = axes['raster']
+        ax_psth = axes['psth']
+    ax_psth.set_xlabel('Time from go cue (s)')
+    ax_raster.set_ylabel('Trial # (correct trials only)')
+    ax_psth.set_ylabel('Firing rate (Hz)')
 
     n_trials_left = psth_cell_left_corr.shape[1]
     assert(len(left_corr_trial_nos) == n_trials_left)
     n_trials_right = psth_cell_right_corr.shape[1]
     assert(len(right_corr_trial_nos) == n_trials_right)
     for trial in range(n_trials_left):
-        ax[0].scatter(tvec, left_corr_trial_nos[trial]*np.ones(len(psth_cell_left_corr[:, trial])),
+        ax_raster.scatter(tvec, left_corr_trial_nos[trial]*np.ones(len(psth_cell_left_corr[:, trial])),
                                 marker = '.', color = color_spikes)
 
     # Plot PSTH for each cell
-    ax[1].plot(tvec_trial, psth[cell]['left_corr']['mean'], color = 'r', linewidth = 1.2)
-    ax[1].fill_between(tvec_trial, psth[cell]['left_corr']['mean'] - psth[cell]['left_corr']['sem'], psth[cell]['left_corr']['mean'] + psth[cell]['left_corr']['sem'],
+    psth_left_corr_mean = np.mean(psth_cell_left_corr, axis = 1)
+    psth_left_corr_sem = np.std(psth_cell_left_corr, axis = 1)/np.sqrt(n_trials_left)
+    psth_right_corr_mean = np.mean(psth_cell_right_corr, axis = 1)
+    psth_right_corr_sem = np.std(psth_cell_right_corr, axis = 1)/np.sqrt(n_trials_right)
+
+    ax_psth.plot(tvec - go_cue_time, psth_left_corr_mean, color = 'r', linewidth = 1.2)
+    ax_psth.fill_between(tvec - go_cue_time, psth_left_corr_mean - psth_left_corr_sem,
+                        psth_left_corr_mean + psth_left_corr_sem,
                         color = 'r', alpha = 0.2, linewidth = 0)
-    ax[1].plot(tvec_trial, psth[cell]['left_inc']['mean'], color = 'lightcoral', linewidth = 0.8)
-    ax[1].fill_between(tvec_trial, psth[cell]['left_inc']['mean'] - psth[cell]['left_inc']['sem'], psth[cell]['left_inc']['mean'] + psth[cell]['left_inc']['sem'],
-                        color = 'lightcoral', alpha = 0.2, linewidth = 0)
-    ax[1].plot(tvec_trial, psth[cell]['right_corr']['mean'], color = 'b', linewidth = 1.2)
-    ax[1].fill_between(tvec_trial, psth[cell]['right_corr']['mean'] - psth[cell]['right_corr']['sem'], psth[cell]['right_corr']['mean'] + psth[cell]['right_corr']['sem'],
+    #ax_psth.plot(tvec, psth[cell]['left_inc']['mean'], color = 'lightcoral', linewidth = 0.8)
+    #ax_psth.fill_between(tvec, psth[cell]['left_inc']['mean'] - psth[cell]['left_inc']['sem'], psth[cell]['left_inc']['mean'] + psth[cell]['left_inc']['sem'],
+    #                    color = 'lightcoral', alpha = 0.2, linewidth = 0)
+    ax_psth.plot(tvec - go_cue_time, psth_right_corr_mean, color = 'b', linewidth = 1.2)
+    ax_psth.fill_between(tvec - go_cue_time, psth_right_corr_mean - psth_right_corr_sem,
+                         psth_right_corr_mean + psth_right_corr_sem,
                         color = 'b', alpha = 0.2, linewidth = 0)
-    ax[1].plot(tvec_trial, psth[cell]['right_inc']['mean'], color = 'cornflowerblue', linewidth = 0.8)
-    ax[1].fill_between(tvec_trial, psth[cell]['right_inc']['mean'] - psth[cell]['right_inc']['sem'], psth[cell]['right_inc']['mean'] + psth[cell]['right_inc']['sem'],
-                        color = 'cornflowerblue', alpha = 0.2, linewidth = 0)
+    #ax_psth.plot(tvec, psth[cell]['right_inc']['mean'], color = 'cornflowerblue', linewidth = 0.8)
+    #ax_psth.fill_between(tvec, psth[cell]['right_inc']['mean'] - psth[cell]['right_inc']['sem'], psth[cell]['right_inc']['mean'] + psth[cell]['right_inc']['sem'],
+    #                    color = 'cornflowerblue', alpha = 0.2, linewidth = 0)
 
     # Plot dashed line to show sample end time and go cue time
-    [y0, y1] = ax[0].get_ylim()
-    ax[0].plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-    ax[0].plot(np.ones(10)*(sample_start_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-    ax[0].plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+    [y0, y1] = ax_raster.get_ylim()
+    ax_raster.plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+    ax_raster.plot(np.ones(10)*(sample_start_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+    ax_raster.plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
 
-    [y0, y1] = ax[1].get_ylim()
-    ax[1].plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-    ax[1].plot(np.ones(10)*(sample_start_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-    ax[1].plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
-    plt.savefig('{0}{1}Cell_{2}_{3}.png'.format(spike_rasters_path, sep, cell + 1, suffix))
+    [y0, y1] = ax_psth.get_ylim()
+    ax_psth.plot(np.ones(10)*(sample_end_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+    ax_psth.plot(np.ones(10)*(sample_start_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+    ax_psth.plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
+    if save_plot:
+        plt.savefig('{0}{1}Cell_{2}_{3}.png'.format(spike_rasters_path, sep, cell + 1, suffix))
 
 def plot_spike_psth_latency_order(spike_psth_array_order, spike_psth_array_display, tvec, ticks, trial_type_text = False, save_path = None, save_fig = False, colorbar_label = 'Normalized activity', ylabel = 'Neuron #', figsize = [12, 12]):
 
