@@ -11,8 +11,8 @@ from caiman.source_extraction.volpy.volpy import VOLPY
 
 def run_volpy(data_path, metadata_file, overwrite = False,
                 hp_freq_pb = 0.1, filename_save = '',
-                reuse_spatial_filters = True, batch_reuse = 0,
-                context_size = 35, censor_size = 12, ridge_bg = 0.01,
+                reuse_spatial_filters = True, batch_reuse = 0, simple_bg_sub = True,
+                context_size = 40, censor_size = 10, ridge_bg = 0.01,
                 exclude_cells_from_background = False, background_cell_censor_size = 8,
                 visualize_ROI = False
                 ):
@@ -94,6 +94,7 @@ def run_volpy(data_path, metadata_file, overwrite = False,
                     'context_size': context_size,
                     'censor_size': censor_size,
                     'ridge_bg': ridge_bg,
+                    'simple_bg_sub': simple_bg_sub,
                     'exclude_cells_from_background': exclude_cells_from_background,
                     'background_cell_censor_size': background_cell_censor_size,
                     'visualize_ROI': visualize_ROI

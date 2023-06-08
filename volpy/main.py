@@ -11,14 +11,15 @@ def main(data_path, metadata_file,
             disp_combined_data = False, show_trial_starts = False,
             disp_spatial_filters = False,
             hp_freq_pb = 0.1, disp_output = True,
-            context_size = 35, censor_size = 12, ridge_bg = 0.01,
+            context_size = 40, censor_size = 10, ridge_bg = 0.01,
+            simple_bg_sub = True,
             exclude_cells_from_background = False, background_cell_censor_size = 8,
             visualize_ROI = False,
             filename_save = ''):
 
     # Run volpy for all sessions
     volpy_results = run_volpy.run_volpy(data_path, metadata_file, overwrite = overwrite_volpy_results, hp_freq_pb = hp_freq_pb,
-                                        context_size = context_size, censor_size = censor_size, ridge_bg = ridge_bg,
+                                        context_size = context_size, censor_size = censor_size, ridge_bg = ridge_bg, simple_bg_sub = simple_bg_sub,
                                         exclude_cells_from_background = exclude_cells_from_background, background_cell_censor_size = background_cell_censor_size,
                                         visualize_ROI = visualize_ROI,
                                         filename_save = filename_save)
