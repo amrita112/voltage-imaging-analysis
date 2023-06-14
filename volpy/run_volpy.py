@@ -12,7 +12,7 @@ from caiman.source_extraction.volpy.volpy import VOLPY
 def run_volpy(data_path, metadata_file, overwrite = False,
                 hp_freq_pb = 0.1, filename_save = '',
                 reuse_spatial_filters = True, batch_reuse = 0,
-                simple_bg_sub = True, bg_sub_factor = 0.25,
+                simple_bg_sub = True, bg_sub_factor = 0.25, calc_bg_sub_factor = False,
                 context_size = 40, censor_size = 10, ridge_bg = 0.01,
                 exclude_cells_from_background = False, background_cell_censor_size = 8,
                 visualize_ROI = False
@@ -97,6 +97,7 @@ def run_volpy(data_path, metadata_file, overwrite = False,
                     'ridge_bg': ridge_bg,
                     'simple_bg_sub': simple_bg_sub,
                     'bg_sub_factor': bg_sub_factor,
+                    'calc_bg_sub_factor': calc_bg_sub_factor,
                     'exclude_cells_from_background': exclude_cells_from_background,
                     'background_cell_censor_size': background_cell_censor_size,
                     'visualize_ROI': visualize_ROI
