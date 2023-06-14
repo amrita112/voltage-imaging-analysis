@@ -7,6 +7,7 @@ import numpy as np
 def main(data_path, metadata_file,
             overwrite_volpy_results = False,
             overwrite_combined_data = False,
+            overwrite_qc = False,
             calc_burst_snr = False,
             disp_combined_data = False, show_trial_starts = False,
             disp_spatial_filters = False,
@@ -26,7 +27,8 @@ def main(data_path, metadata_file,
                                         filename_save = filename_save)
 
     # Perform quality control on volpy results
-    good_cells = quality_control.perform_quality_control(data_path, metadata_file, volpy_results, volpy_results_file_user = filename_save)
+    good_cells = quality_control.perform_quality_control(data_path, metadata_file, volpy_results, volpy_results_file_user = filename_save,
+                                                        overwrite = overwrite_qc)
     for session in good_cells.keys():
         print('Session {0}: {1} good cells'.format(session, np.sum([np.all(good_cells[session][i, :]) for i in range(good_cells[session].shape[0])])))
 
