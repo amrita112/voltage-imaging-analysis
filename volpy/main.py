@@ -8,7 +8,7 @@ def main(data_path, metadata_file,
             overwrite_volpy_results = False,
             overwrite_combined_data = False,
             overwrite_qc = False,
-            calc_burst_snr = False,
+            calc_burst_snr = False, calc_simple_bg_snr = False,
             disp_combined_data = False, show_trial_starts = False,
             disp_spatial_filters = False,
             hp_freq_pb = 0.1, disp_output = False,
@@ -35,7 +35,8 @@ def main(data_path, metadata_file,
     # Combine data from sessions
     combine_sessions.combine_sessions(data_path, metadata_file, volpy_results,
                                       overwrite = overwrite_combined_data, make_plot = disp_combined_data,
-                                      calc_burst_snr = calc_burst_snr, show_trial_starts = show_trial_starts,
+                                      calc_burst_snr = calc_burst_snr, calc_simple_bg_snr = calc_simple_bg_snr,
+                                      show_trial_starts = show_trial_starts,
                                       filename_save = filename_save)
 
     # Display volpy output summary

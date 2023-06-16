@@ -14,7 +14,7 @@ from subthreshold import isi_dist
 def combine_sessions(data_path, metadata_file, volpy_results,
                         dff_sub_freq = 20, noise_freq = 30,
                         burst_snr_n_spikes = 5, # SNR calculated from bursts with number of spikes <= burst_snr_n_spikes
-                        calc_burst_snr = False,
+                        calc_burst_snr = False, calc_simple_bg_snr = False,
                         overwrite = False, make_plot = False,
                         show_trial_starts = False, save_path = None, filename_save = '',
                         dff_scalebar_height = 0.1, scalebar_width = 1):
@@ -38,6 +38,7 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         combined_data = volpy_results['combined_data']
         dFF = combined_data['dFF']
         dFF_sub = combined_data['dFF_sub']
+        dFF_simple_bg_sub = combined_data['dFF_simple_bg_sub']
         F0 = combined_data['F0']
         cells = combined_data['cells']
         n_cells = len(cells)
@@ -46,6 +47,8 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         snr = combined_data['snr']
         if calc_burst_snr:
             burst_snr = combined_data['burst_snr']
+        if calc_simple_bg_snr:
+            simple_bg_snr = combined_data['simple_bg_snr']
         tvec = combined_data['tvec']
         trial_start_frames_concat = combined_data['trial_start_frames_concat']
         print('Combined data loaded')
@@ -85,12 +88,14 @@ def combine_sessions(data_path, metadata_file, volpy_results,
 
         dFF = {cell: [] for cell in cells}
         dFF_sub = {cell: [] for cell in cells}
+        dFF_simple_bg_sub = {cell: [] for cell in cells}
         F0 = {cell: [] for cell in cells}
         spike_times = {cell: [] for cell in cells}
         spike_frames = {cell: [] for cell in cells}
         total_batches = np.sum([dict['n_batches'] for dict in list(batch_data.values())])
         snr = np.zeros([n_cells, total_batches])
         burst_snr = np.zeros([n_cells, total_batches])
+        simple_bg_snr = np.zeros([n_cells, total_batches])
         tvec = frame_times_concat
         trial_start_frames_concat = []
         n_frames_total = 0
@@ -120,8 +125,24 @@ def combine_sessions(data_path, metadata_file, volpy_results,
                     F0[cell] = np.append(F0[cell], estimates['F0'][cell])
                     assert(len(estimates['dFF'][cell]) == len(estimates['t_sub'][cell]))
                     dFF_sub[cell] = np.append(dFF_sub[cell], signal_filter(estimates['dFF'][cell], dff_sub_freq, frame_rate, order=5, mode='low'))
+                    dFF_simple_bg_sub_batch = np.divide((estimates['rawROI'][cell]['t'] - estimates['bg_sub_factor'][cell]*estimates['background_trace'][cell]),
+                                                            estimates['F0'][cell])
+                    dFF_simple_bg_sub[cell] = np.append(dFF_simple_bg_sub[cell], dFF_simple_bg_sub_batch)
 
                     snr[cell_idx, n_batches_total] = estimates['snr'][cell]
+                    if calc_simple_bg_snr:
+                        if len(spike_frames_batch) > 0:
+                            t = dFF_simple_bg_sub_batch - np.median(dFF_simple_bg_sub_batch)
+                            selectSpikes = np.zeros(t.shape)
+                            selectSpikes[spike_frames_batch] = 1
+                            sgn = np.mean(t[selectSpikes > 0])
+                            ff1 = -t * (t < 0)
+                            Ns = np.sum(ff1 > 0)
+                            noise = np.sqrt(np.divide(np.sum(ff1**2), Ns))
+                            simple_bg_snr_batch = sgn / noise
+                        else:
+                            simple_bg_snr_batch = 0
+                        simple_bg_snr[cell_idx, n_batches_total] = simple_bg_snr_batch
                     cell_idx += 1
 
                 n_batches_total += 1
@@ -187,6 +208,7 @@ def combine_sessions(data_path, metadata_file, volpy_results,
             'spike_frames':              spike_frames,
             'snr':                       snr,
             'burst_snr':                 burst_snr,
+            'simple_bg_snr':         simple_bg_snr,
             'tvec':                      tvec,
             'trial_start_frames_concat': trial_start_frames_concat
         }
@@ -246,7 +268,7 @@ def combine_sessions(data_path, metadata_file, volpy_results,
         plt.savefig(save_path)
 
     return combined_data
-    
+
 def signal_filter(sg, freq, fr, order=3, mode='high'):
     """
     Function for high/low passing the signal with butterworth filter
