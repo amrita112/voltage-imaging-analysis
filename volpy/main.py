@@ -13,7 +13,7 @@ def main(data_path, metadata_file,
             disp_spatial_filters = False,
             hp_freq_pb = 0.1, disp_output = False,
             context_size = 40, censor_size = 10, ridge_bg = 0.01,
-            simple_bg_sub = True, bg_sub_factor = 0.25, calc_bg_sub_factor = False,
+            simple_bg_sub = False, bg_sub_factor = 0.25, calc_bg_sub_factor = False,
             exclude_cells_from_background = False, background_cell_censor_size = 8,
             visualize_ROI = False,
             filename_save = ''):
