@@ -12,7 +12,7 @@ from subthreshold import burst_subth
 from subthreshold import isi_dist
 
 def combine_sessions(data_path, metadata_file, volpy_results,
-                        dff_sub_freq = 20, noise_freq = 30,
+                        dff_sub_freq = 20, noise_freq = 30, simple_bg_sub_hp_freq_Hz = 0,
                         burst_snr_n_spikes = 5, # SNR calculated from bursts with number of spikes <= burst_snr_n_spikes
                         calc_burst_snr = False, calc_simple_bg_snr = False,
                         overwrite = False, make_plot = False,
@@ -127,6 +127,8 @@ def combine_sessions(data_path, metadata_file, volpy_results,
                     dFF_sub[cell] = np.append(dFF_sub[cell], signal_filter(estimates['dFF'][cell], dff_sub_freq, frame_rate, order=5, mode='low'))
                     dFF_simple_bg_sub_batch = np.divide((estimates['rawROI'][cell]['t'] - estimates['bg_sub_factor'][cell]*estimates['background_trace'][cell]),
                                                             estimates['F0'][cell])
+                    if simple_bg_sub_hp_freq_Hz > 0:
+                        dFF_simple_bg_sub_batch = signal_filter(dFF_simple_bg_sub_batch, simple_bg_sub_hp_freq_Hz, frame_rate, order = 5, mode = 'high')
                     dFF_simple_bg_sub[cell] = np.append(dFF_simple_bg_sub[cell], dFF_simple_bg_sub_batch)
 
                     snr[cell_idx, n_batches_total] = estimates['snr'][cell]
