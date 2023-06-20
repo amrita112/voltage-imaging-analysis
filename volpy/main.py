@@ -14,6 +14,7 @@ def main(data_path, metadata_file,
             hp_freq_pb = 0.1, disp_output = False,
             context_size = 40, censor_size = 10, ridge_bg = 0.01,
             simple_bg_sub = False, bg_sub_factor = 0.25, calc_bg_sub_factor = False,
+            simple_bg_sub_hp_freq_Hz = 0, use_spatial_filter_for_raw_trace = False,
             exclude_cells_from_background = False, background_cell_censor_size = 8,
             visualize_ROI = False,
             filename_save = ''):
@@ -22,6 +23,7 @@ def main(data_path, metadata_file,
     volpy_results = run_volpy.run_volpy(data_path, metadata_file, overwrite = overwrite_volpy_results, hp_freq_pb = hp_freq_pb,
                                         context_size = context_size, censor_size = censor_size, ridge_bg = ridge_bg,
                                         simple_bg_sub = simple_bg_sub, bg_sub_factor = bg_sub_factor, calc_bg_sub_factor = calc_bg_sub_factor,
+                                        use_spatial_filter_for_raw_trace = use_spatial_filter_for_raw_trace,
                                         exclude_cells_from_background = exclude_cells_from_background, background_cell_censor_size = background_cell_censor_size,
                                         visualize_ROI = visualize_ROI,
                                         filename_save = filename_save)
@@ -35,6 +37,7 @@ def main(data_path, metadata_file,
     # Combine data from sessions
     combine_sessions.combine_sessions(data_path, metadata_file, volpy_results,
                                       overwrite = overwrite_combined_data, make_plot = disp_combined_data,
+                                      simple_bg_sub_hp_freq_Hz = simple_bg_sub_hp_freq_Hz,
                                       calc_burst_snr = calc_burst_snr, calc_simple_bg_snr = calc_simple_bg_snr,
                                       show_trial_starts = show_trial_starts,
                                       filename_save = filename_save)
