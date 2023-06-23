@@ -1461,6 +1461,134 @@ def plot_sta_all_pairs2(data_path, cc_dict, peak_frames_show, neg_thresh, cells,
     if save_fig:
         plt.savefig('{0}{1}{2}.png'.format(save_path, sep, title))
 
+def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, cells, frame_rate, dFF, spike_frames, range_ms = 15, n_rows = 4, n_cols = 6, fig_title = '', save_fig = False, save_path = None):
+
+    sta_peak = cc_dict['sta_peak']
+    sta_peak_frame = cc_dict['sta_peak_frame']
+
+    pairs_show = [pair for pair in range(len(sta_peak)) if sta_peak_frame[pair] in peak_frames_show]
+    connected = np.zeros(len(sta_peak))
+    connected[pairs_show] = np.ones(len(pairs_show))
+    connected[sta_peak > neg_thresh] = np.zeros(np.sum(sta_peak > neg_thresh))
+
+    #range_frames = cc_dict['range_frames']
+    #range_ms = cc_dict['range_frames']*1000/frame_rate
+    range_frames = int(range_ms*frame_rate/1000)
+    tvec = np.linspace(-range_ms, range_ms, range_frames*2)
+
+    n_cells = len(cells)
+    n_pairs = np.sum(connected)
+    n_pairs_per_page = int(n_rows*n_cols/2)
+    n_pages = int(np.ceil(n_pairs/n_pairs_per_page))
+
+    fig, ax = plt.subplots(nrows = n_rows, ncols = n_cols, constrained_layout = True, figsize = [15, 10])
+    page = 0
+    row = -1
+    col = -1
+    pair_no = -1
+    for i in range(n_cells):
+        for j in range(i):
+            pair_no += 1
+            if connected[pair_no]:
+                col += 1
+                if np.mod(col, n_cols) == 0:
+                    col = 0
+                    row += 1
+                    if row > n_rows/2 - 1:
+                        row = 0
+                        page += 1
+                        for c in range(n_cols):
+                            ax[n_rows - 1, c].set_xlabel('Time from\nspike (ms)')
+                        for r in range(n_rows):
+                            ax[r, 0].set_ylabel('-dF/F')
+                        if len(fig_title) > 0:
+                            title = fig_title
+                        else:
+                            title = 'STA connected pairs'
+
+                        if save_path == None:
+                            save_path = data_path
+
+                        if save_fig:
+                            plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, title, page))
+                        fig, ax = plt.subplots(nrows = n_rows, ncols = n_cols, constrained_layout = True, figsize = [15, 10])
+
+                sta_all = sta(spike_frames[cells[i]], dFF[j], range_frames)
+                sta_mean = np.mean(sta_all, axis = 0)
+
+                spikes_all = sta(spike_frames[cells[i]], dFF[i], range_frames)
+                spike_mean = np.mean(spikes_all, axis = 0)
+
+                n_spikes = sta_all.shape[0]
+                for spike in range(n_spikes):
+                    ax[row*2 + 1, col].plot(tvec, sta_all[spike, :], color = 'gray', alpha = 0.2, linewidth = 0.8)
+                    ax[row*2, col].plot(tvec, spikes_all[spike, :], color = 'gray', alpha = 0.2, linewidth = 0.8)
+                ax[row*2 + 1, col].plot(tvec, sta_mean, color = 'k', linewidth = 1.5, marker = '.')
+                ax[row*2, col].plot(tvec, spike_mean, color = 'k', linewidth = 1.5, marker = '.')
+                ax[row*2, col].set_xlim([-5, range_ms])
+                ax[row*2 + 1, col].set_xlim([-5, range_ms])
+                ax[row*2, col].set_title('Cell {0} --> Cell {1}'.format(cells[i] + 1, cells[j] + 1))
+
+
+    for i in range(n_cells):
+        for j in range(i):
+            pair_no += 1
+            if connected[pair_no]:
+                col += 1
+                if np.mod(col, n_cols) == 0:
+                    col = 0
+                    row += 1
+                    if row > n_rows/2 - 1:
+                        row = 0
+                        page += 1
+                        for c in range(n_cols):
+                            ax[n_rows - 1, c].set_xlabel('Time from\nspike (ms)')
+                        for r in range(n_rows):
+                            ax[r, 0].set_ylabel('-dF/F')
+                        if len(fig_title) > 0:
+                            title = fig_title
+                        else:
+                            title = 'STA connected pairs'
+
+                        if save_path == None:
+                            save_path = data_path
+
+                        if save_fig:
+                            plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, title, page))
+                        fig, ax = plt.subplots(nrows = n_rows, ncols = n_cols, constrained_layout = True, figsize = [15, 10])
+
+                sta_all = sta(spike_frames[cells[j]], dFF[i], range_frames)
+                sta_mean = np.mean(sta_all, axis = 0)
+
+                spikes_all = sta(spike_frames[cells[j]], dFF[j], range_frames)
+                spike_mean = np.mean(spikes_all, axis = 0)
+
+                n_spikes = sta_all.shape[0]
+                for spike in range(n_spikes):
+                    ax[row*2 + 1, col].plot(tvec, sta_all[spike, :], color = 'gray', alpha = 0.2, linewidth = 0.8)
+                    ax[row*2, col].plot(tvec, spikes_all[spike, :], color = 'gray', alpha = 0.2, linewidth = 0.8)
+                ax[row*2 + 1, col].plot(tvec, sta_mean, color = 'k', linewidth = 1.5, marker = '.')
+                ax[row*2, col].plot(tvec, spike_mean, color = 'k', linewidth = 1.5, marker = '.')
+                ax[row*2, col].set_xlim([-5, range_ms])
+                ax[row*2 + 1, col].set_xlim([-5, range_ms])
+                ax[row*2, col].set_title('Cell {0} --> Cell {1}'.format(cells[j], cells[i]))
+
+    for c in range(n_cols):
+        ax[n_rows - 1, c].set_xlabel('Time from\nspike (ms)')
+    for r in range(n_rows):
+        ax[r, 0].set_ylabel('-dF/F')
+        
+    if len(fig_title) > 0:
+        title = fig_title
+    else:
+        title = 'STA connected pairs'
+
+    if save_path == None:
+        save_path = data_path
+
+    if save_fig:
+        plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, title, page + 1))
+
 def get_spike_rate(spike_vector, spike_bin_frames):
 
     kernel = np.ones(spike_bin_frames - 1)
