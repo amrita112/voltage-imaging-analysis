@@ -1461,7 +1461,7 @@ def plot_sta_all_pairs2(data_path, cc_dict, peak_frames_show, neg_thresh, cells,
     if save_fig:
         plt.savefig('{0}{1}{2}.png'.format(save_path, sep, title))
 
-def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, cells, frame_rate, dFF, spike_frames, range_ms = 15, n_rows = 4, n_cols = 6, fig_title = '', save_fig = False, save_path = None):
+def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, cells, frame_rate, dFF, spike_frames, range_ms = 15, n_rows = 4, n_cols = 6, plot_correlation = False, fig_title = '', save_fig = False, save_path = None):
 
     sta_peak = cc_dict['sta_peak']
     sta_peak_frame = cc_dict['sta_peak_frame']
@@ -1480,6 +1480,8 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
     n_pairs = np.sum(connected)
     n_pairs_per_page = int(n_rows*n_cols/2)
     n_pages = int(np.ceil(n_pairs/n_pairs_per_page))
+    spike_heights = {}
+    psp_heights = {}
 
     fig, ax = plt.subplots(nrows = n_rows, ncols = n_cols, constrained_layout = True, figsize = [15, 10])
     page = 0
@@ -1495,12 +1497,12 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                     col = 0
                     row += 1
                     if row > n_rows/2 - 1:
-                        row = 0
                         page += 1
                         for c in range(n_cols):
-                            ax[n_rows - 1, c].set_xlabel('Time from\nspike (ms)')
+                            ax[row*2 - 1, c].set_xlabel('Time from\nspike (ms)')
                         for r in range(n_rows):
                             ax[r, 0].set_ylabel('-dF/F')
+
                         if len(fig_title) > 0:
                             title = fig_title
                         else:
@@ -1512,12 +1514,17 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                         if save_fig:
                             plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, title, page))
                         fig, ax = plt.subplots(nrows = n_rows, ncols = n_cols, constrained_layout = True, figsize = [15, 10])
+                        row = 0
 
                 sta_all = sta(spike_frames[cells[i]], dFF[j], range_frames)
                 sta_mean = np.mean(sta_all, axis = 0)
 
                 spikes_all = sta(spike_frames[cells[i]], dFF[i], range_frames)
                 spike_mean = np.mean(spikes_all, axis = 0)
+
+                spike_heights[pair_no] = [spikes_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
+                assert(spikes_all[0, range_frames] == np.max(spikes_all[0, :]))
+                psp_heights[pair_no] = [sta_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
 
                 n_spikes = sta_all.shape[0]
                 for spike in range(n_spikes):
@@ -1539,10 +1546,9 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                     col = 0
                     row += 1
                     if row > n_rows/2 - 1:
-                        row = 0
                         page += 1
                         for c in range(n_cols):
-                            ax[n_rows - 1, c].set_xlabel('Time from\nspike (ms)')
+                            ax[row*2 - 1, c].set_xlabel('Time from\nspike (ms)')
                         for r in range(n_rows):
                             ax[r, 0].set_ylabel('-dF/F')
                         if len(fig_title) > 0:
@@ -1556,12 +1562,17 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                         if save_fig:
                             plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, title, page))
                         fig, ax = plt.subplots(nrows = n_rows, ncols = n_cols, constrained_layout = True, figsize = [15, 10])
+                        row = 0
 
                 sta_all = sta(spike_frames[cells[j]], dFF[i], range_frames)
                 sta_mean = np.mean(sta_all, axis = 0)
 
                 spikes_all = sta(spike_frames[cells[j]], dFF[j], range_frames)
                 spike_mean = np.mean(spikes_all, axis = 0)
+
+                spike_heights[pair_no] = [spikes_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
+                assert(spikes_all[0, range_frames] == np.max(spikes_all[0, :]))
+                psp_heights[pair_no] = [sta_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
 
                 n_spikes = sta_all.shape[0]
                 for spike in range(n_spikes):
@@ -1574,10 +1585,10 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                 ax[row*2, col].set_title('Cell {0} --> Cell {1}'.format(cells[j], cells[i]))
 
     for c in range(n_cols):
-        ax[n_rows - 1, c].set_xlabel('Time from\nspike (ms)')
+        ax[row*2 + 1, c].set_xlabel('Time from\nspike (ms)')
     for r in range(n_rows):
         ax[r, 0].set_ylabel('-dF/F')
-        
+
     if len(fig_title) > 0:
         title = fig_title
     else:
@@ -1588,6 +1599,20 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
 
     if save_fig:
         plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, title, page + 1))
+
+    if plot_correlation:
+        plot_sta_spike_correlation(spike_heights, psp_heights, save_fig = save_fig, save_path = save_path)
+
+def plot_sta_spike_correlation(spike_heights, psp_heights, save_fig = False, save_path = None):
+
+    n_pairs = len(list(spike_heights.keys()))
+    corr = [np.corrcoeff(spike_heights[pair], psp_heights[pair])[0][0] for pair in range(n_pairs)]
+    plt.figure(figsize = [5, 4])
+    plt.hist(corr, n_bins = int(n_pairs/5), color = 'k')
+    plt.xlabel('Correlation between\npre-synaptic spike and\npost-synaptic potential')
+    plt.ylabel('Number of pairs')
+    if save_fig:
+        plt.save('{0}{1}spike_sta_correlation.png'.format(save_path, sep))
 
 def get_spike_rate(spike_vector, spike_bin_frames):
 
