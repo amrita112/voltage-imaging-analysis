@@ -1523,7 +1523,7 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                 spike_mean = np.mean(spikes_all, axis = 0)
 
                 spike_heights[pair_no] = [spikes_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
-                assert(spikes_all[0, range_frames] == np.max(spikes_all[0, :]))
+                assert(spike_mean[range_frames] == np.max(spike_mean))
                 psp_heights[pair_no] = [sta_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
 
                 n_spikes = sta_all.shape[0]
@@ -1571,7 +1571,7 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                 spike_mean = np.mean(spikes_all, axis = 0)
 
                 spike_heights[pair_no] = [spikes_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
-                assert(spikes_all[0, range_frames] == np.max(spikes_all[0, :]))
+                assert(spike_mean[range_frames] == np.max(spike_mean))
                 psp_heights[pair_no] = [sta_all[spike_no, range_frames] for spike_no in range(len(sta_mean))]
 
                 n_spikes = sta_all.shape[0]
