@@ -1601,18 +1601,23 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
         plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, title, page + 1))
 
     if plot_correlation:
-        plot_sta_spike_correlation(spike_heights, psp_heights, save_fig = save_fig, save_path = save_path)
+        corr = plot_sta_spike_correlation(spike_heights, psp_heights, save_fig = save_fig, save_path = save_path)
+    cc_dict['spike_psp_correlations'] = corr
+    return cc_dict
 
 def plot_sta_spike_correlation(spike_heights, psp_heights, save_fig = False, save_path = None):
 
     n_pairs = len(list(spike_heights.keys()))
-    corr = [np.corrcoeff(spike_heights[pair], psp_heights[pair])[0][0] for pair in range(n_pairs)]
+    assert(len(list(psp_heights.keys())) == n_pairs)
+    corr = [np.corrcoef(spike_heights[pair], psp_heights[pair])[0][0] for pair in list(spike_heights.keys())]
     plt.figure(figsize = [5, 4])
-    plt.hist(corr, n_bins = int(n_pairs/5), color = 'k')
+    plt.hist(corr, int(n_pairs/5), color = 'k')
     plt.xlabel('Correlation between\npre-synaptic spike and\npost-synaptic potential')
     plt.ylabel('Number of pairs')
     if save_fig:
         plt.save('{0}{1}spike_sta_correlation.png'.format(save_path, sep))
+
+    return corr
 
 def get_spike_rate(spike_vector, spike_bin_frames):
 
