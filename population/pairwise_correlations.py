@@ -1605,17 +1605,34 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
     cc_dict['spike_psp_correlations'] = corr
     return cc_dict
 
-def plot_sta_spike_correlation(spike_heights, psp_heights, save_fig = False, save_path = None):
+def plot_sta_spike_correlation(spike_heights, psp_heights, nrows = 5, save_fig = False, save_path = None):
 
     n_pairs = len(list(spike_heights.keys()))
     assert(len(list(psp_heights.keys())) == n_pairs)
     corr = [np.corrcoef(spike_heights[pair], psp_heights[pair])[0][0] for pair in list(spike_heights.keys())]
+
+    ncols = int(np.ceil(n_pairs/nrows))
+    fig, ax = plt.subplots(nrows = nrows, ncols = ncols, constrained_layout = True, figsize = [15, 10])
+    row = 0
+    col = 0
+    for pair in list(spike_heights.keys()):
+        ax[row, col].scatter(spike_heights[pair], psp_heights[pair], marker = '.', color = 'k')
+        if row == nrows - 1:
+            ax[row, col].set_xlabel('Pre-synaptic spike')
+        if col == 0:
+            ax[row, col].set_ylabel('Post-synaptic potential')
+        if col == ncols - 1:
+            row += 1
+            col = 0
+        else:
+            col += 1
+
     plt.figure(figsize = [5, 4])
-    plt.hist(corr, int(n_pairs/5), color = 'k')
-    plt.xlabel('Correlation between\npre-synaptic spike and\npost-synaptic potential')
+    plt.hist(corr, color = 'k')
+    plt.xlabel('Correlation between pre-synaptic spike\nand post-synaptic potential')
     plt.ylabel('Number of pairs')
     if save_fig:
-        plt.save('{0}{1}spike_sta_correlation.png'.format(save_path, sep))
+        plt.savefig('{0}{1}spike_sta_correlation.png'.format(save_path, sep))
 
     return corr
 
