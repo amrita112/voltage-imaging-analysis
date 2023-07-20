@@ -1572,7 +1572,7 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
 
                 spike_heights[pair_no] = spikes_all[:, range_frames]
                 assert(spike_mean[range_frames] == np.max(spike_mean))
-                psp_heights[pair_no] = sta_all[:, range_frames] 
+                psp_heights[pair_no] = sta_all[:, range_frames]
 
                 n_spikes = sta_all.shape[0]
                 for spike in range(n_spikes):
@@ -1622,7 +1622,7 @@ def plot_sta_spike_correlation(spike_heights, psp_heights, cell_ids, nrows = 5, 
     for i in range(n_cells):
         for j in range(i):
             if pair in pair_nos:
-                ax[row, col].scatter(spike_heights[pair_nos[n_pairs_plotted]], psp_heights[pair_nos[n_pairs_plotted]], marker = '.', color = 'k')
+                ax[row, col].scatter(spike_heights[pair_nos[n_pairs_plotted]], psp_heights[pair_nos[n_pairs_plotted]], marker = '.', color = 'k', alpha = 0.2)
                 n_pairs_plotted += 1
                 ax[row, col].set_title('Cell {0} --> Cell {1}'.format(cell_ids[i] + 1, cell_ids[j] + 1))
                 if row == nrows - 1:
@@ -1639,7 +1639,7 @@ def plot_sta_spike_correlation(spike_heights, psp_heights, cell_ids, nrows = 5, 
     for i in range(n_cells):
         for j in range(i):
             if pair in pair_nos:
-                ax[row, col].scatter(spike_heights[pair_nos[n_pairs_plotted]], psp_heights[pair_nos[n_pairs_plotted]], marker = '.', color = 'k')
+                ax[row, col].scatter(spike_heights[pair_nos[n_pairs_plotted]], psp_heights[pair_nos[n_pairs_plotted]], marker = '.', color = 'k', alpha = 0.2)
                 n_pairs_plotted += 1
                 ax[row, col].set_title('Cell {0} --> Cell {1}'.format(cell_ids[j] + 1, cell_ids[i] + 1))
                 if row == nrows - 1:
@@ -1653,7 +1653,10 @@ def plot_sta_spike_correlation(spike_heights, psp_heights, cell_ids, nrows = 5, 
                     col += 1
             pair += 1
 
-    plt.figure(figsize = [5, 4])
+    if save_fig:
+        plt.savefig('{0}{1}spike_sta_scatters.png'.format(save_path, sep))
+
+    plt.figure(figsize = [5, 4], constrained_layout = True)
     plt.hist(corr, color = 'k')
     plt.xlabel('Correlation between pre-synaptic spike\nand post-synaptic potential')
     plt.ylabel('Number of pairs')
