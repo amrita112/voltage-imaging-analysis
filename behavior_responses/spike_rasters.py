@@ -159,7 +159,7 @@ def get_psth(trial_types_left_right_cor_inc, spike_times_trial, bin_size_ms = 10
     bin_edges_ms = np.arange(0, max_spike_time*1000 + 3*bin_size_ms, bin_size_ms)
     n_bins = len(bin_edges_ms) - 1
 
-    n_cells = len(spike_times_trial.keys()) - 1
+    n_cells = len([key for key in spike_times_trial.keys() if np.issubdtype(key, np.integer)]) - 1
     psth = {cell: {'left_corr':    {'all_trials': np.zeros([n_bins, 1]), 'mean': np.zeros(n_bins), 'sem': np.zeros(n_bins)},
                    'right_corr':   {'all_trials': np.zeros([n_bins, 1]), 'mean': np.zeros(n_bins), 'sem': np.zeros(n_bins)},
                    'left_inc':     {'all_trials': np.zeros([n_bins, 1]), 'mean': np.zeros(n_bins), 'sem': np.zeros(n_bins)},
