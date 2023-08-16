@@ -14,7 +14,7 @@ from volpy import quality_control
 from population import plots
 from population import clustering
 
-def get_population_psth(population_data_path, movies, data_paths, metadata_file, genotype, overwrite_spike_psth = False, overwrite_dFF_psth = False, overwrite_trial_time_points = False, overwrite_spike_times_trials = False, make_plot_spike_psth = True, make_plot_dFF_psth = True, make_plot_for_each_cell = False, filter_freq = None, filter_type = 'lp', bin_size_ms = 100, plot_psths = True):
+def get_population_psth(population_data_path, movies, data_paths, metadata_file, genotype, overwrite_spike_psth = False, overwrite_dFF_psth = False, overwrite_trial_time_points = False, overwrite_spike_times_trials = False, make_plot_spike_psth = True, make_plot_dFF_psth = True, make_plot_for_each_cell = False, filter_freq = None, filter_type = 'lp', bin_size_ms = 100, plot_psths = True, save_fig = False):
 
     with open('{0}{1}qc_results.py'.format(population_data_path, sep), 'rb') as f:
         qc_results = pkl.load(f)
@@ -102,7 +102,7 @@ def get_population_psth(population_data_path, movies, data_paths, metadata_file,
         plots.plot_spike_psth(spike_psth['psth_array'], tvec, ticks,
                                 cell_order = cell_order, cluster_boundaries = cluster_boundaries,
                                 cluster_names = cluster_names,
-                              save_fig = True,
+                              save_fig = save_fig,
                               save_path = '{0}{1}Plots{1}Clustering{1}Spikes{1}PSTH_population.png'.format(population_data_path, sep))
 
         # Z-scored spike PSTH

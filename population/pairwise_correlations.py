@@ -1200,6 +1200,7 @@ def fov_image_synaptic_connections(data_path, metadata_file, cells, connected, d
     cell_ids = [cell + 1 for cell in cells]
     no_cells = len(cell_ids)
 
+    # Draw ROI and label each cell
     for cell in range(no_cells):
         cell_id = cell_ids[cell]
         if len(rois.keys()) > 3:
@@ -1582,7 +1583,7 @@ def plot_sta_connected_pairs(data_path, cc_dict, peak_frames_show, neg_thresh, c
                 ax[row*2, col].plot(tvec, spike_mean, color = 'k', linewidth = 1.5, marker = '.')
                 ax[row*2, col].set_xlim([-5, range_ms])
                 ax[row*2 + 1, col].set_xlim([-5, range_ms])
-                ax[row*2, col].set_title('Cell {0} --> Cell {1}'.format(cells[j], cells[i]))
+                ax[row*2, col].set_title('Cell {0} --> Cell {1}'.format(cells[j] + 1, cells[i] + 1))
 
     for c in range(n_cols):
         ax[row*2 + 1, c].set_xlabel('Time from\nspike (ms)')
