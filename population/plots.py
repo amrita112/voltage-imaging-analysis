@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 
-def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', figsize = [12, 12], vmin = None, vmax = None, specify_colorbar_limits = False):
+def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', figsize = [12, 12], ylim = 0, linecolor = None, cmap = None, vmin = None, vmax = None, vcenter = None, specify_colorbar_limits = False):
 
     n_neurons = spike_psth_array.shape[0]
     n_bins = int(spike_psth_array.shape[1]/2)
@@ -11,16 +11,19 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
 
     plt.figure(constrained_layout = True, figsize = figsize)
     if specify_colorbar_limits:
-        plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto', vmin = vmin, vmax = vmax)
+        norm = matplotlib.colors.TwoSlopeNorm(vmin = vmin, vmax = vmax, vcenter = vcenter)
+        plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto', norm = norm, cmap = cmap)
     else:
         plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto')
     cb = plt.colorbar()
     cb.set_label(colorbar_label, fontsize = 20)
     plt.ylabel(ylabel, fontsize = 20)
 
+    if linecolor == None:
+        linecolor = 'w'
     for cb in cluster_boundaries:
         plt.plot(list(range(n_bins*2)), np.ones(n_bins*2)*cb,
-                 color = 'white', linewidth = 2, linestyle = '--')
+                 color = linecolor, linewidth = 2, linestyle = '--')
     cluster_boundaries = np.insert(cluster_boundaries, 0, 0)
     for n in range(len(cluster_names)):
         plt.text(-10, (cluster_boundaries[n] + cluster_boundaries[n + 1])/2, cluster_names[n],
@@ -28,7 +31,7 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
 
     for tick in ticks:
         plt.plot(np.ones(n_neurons)*tick, list(range(n_neurons)),
-                 color = 'white', linewidth = 2)
+                 color = linecolor, linewidth = 2)
     labels = tvec[ticks]
     plt.xticks(ticks = ticks, labels = np.round(labels, 2), fontsize = 18)
     plt.xlabel('Time from go cue (s)', fontsize = 20)
@@ -53,6 +56,10 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
     plt.text(x_d2, -2, 'D', fontsize = 18)
     plt.text(x_r1, -2, 'R', fontsize = 18)
     plt.text(x_r2, -2, 'R', fontsize = 18)
+
+    if not ylim == 0:
+        plt.ylim(ylim)
+    plt.gca().spines['top'].set_visible(False)
 
     font = {'family' : 'normal',
         'size'   : 20}

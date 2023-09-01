@@ -1,9 +1,76 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from os.path import sep
+import pickle as pkl
 
-def latency_single_cell(psth, tvec, threshold = 0.05, bin_ms = 10, baseline_period_ms = 100, make_plot = False, min_latency_ms = 100, period_show_s = 0.5):
+from population import load_data_session
+from behavior_responses import process_bpod_data
+from population import population_psth
+from behavior_responses import spike_rasters
+
+def latency_session(data_path, metadata_file, good_cells, good_blocks, go_cue_time, threshold = 0.05, bin_ms = 10, psth_bin_size_ms = 2.5, baseline_period_ms = 100, min_latency_ms = 100, period_show_s = 0.5, filename = 'go_cue_latency.pkl', overwrite = False,  make_plots = False, save_plots = False, save_path = None):
+
+    """ Get latency of go cue response on left and right correct and incorrect trials for all cells in a session,
+        and plot spike rasters with onset latency indicated.
+
+        Inputs:
+        data_path: string, location of all data for session
+        metadata_file: string, name of file where metadata is stored
+        good_cells: array (int), indices of cells passing QC (starting from 0)
+        good_blocks: array (int), of same length as good_cells, last block # (starting from 0) that passes QC for each cell
+        go_cue_time: float, time of go cue
+        threshold: float, default 0.05, probability threshold for determining onset of go cue response
+        bin_ms: int, default 10, bin for calculating spike rate after go cue
+        psth_bin_size_ms: float, default 2.5 (1/frame rate): bin for single spike
+        baseline_period_ms: int, default 100, period before go cue to calculate baseline spike rate
+        min_latency_ms: int, default 100, plots for neurons with latency lower than this value will be shown upto period_show_s
+        period_show_s: float, default 0.5, see min_latency_ms
+
+        Outputs:
+
+    """
+    try:
+        with open('{0}{1}{2}'.format(data_path, sep, filename), 'rb') as f:
+            output = pkl.load(f)
+    except:
+        overwrite = True
+
+    if overwrite:
+
+        output = {}
+
+        # Load data for session
+        print('Loading data')
+        session_data = load_data_session.load_data_session(data_path, metadata_file)
+
+        # Load spike counts
+        print('Loading spike counts')
+        trial_types_left_right_cor_inc = process_bpod_data.get_trial_types(data_path, metadata_file)
+        spike_times_trials = population_psth.get_spike_times_trials(data_path, metadata_file,
+                                            good_cells, good_blocks,
+                                            go_cue_time, trial_types_left_right_cor_inc,
+                                            overwrite = False)
+        psth = spike_rasters.get_psth(trial_types_left_right_cor_inc, spike_times_trials, bin_size_ms = psth_bin_size_ms)
+        tvec_trial = psth['tvec'] - go_cue_time
+
+        # Calculate latency
+        for cell in good_cells:
+            output[cell] = latency_single_cell(psth[cell], tvec_trial,
+                                               threshold = threshold, bin_ms = bin_ms, baseline_period_ms = baseline_period_ms,
+                                               min_latency_ms = min_latency_ms, period_show_s = period_show_s,
+                                               make_plot = make_plots, save_plot = save_plots,
+                                               save_path = '{0}{1}Cell_{2}.png'.format(save_path, sep, cell + 1))
+
+        # Save results
+        with open('{0}{1}{2}'.format(data_path, sep, filename), 'wb') as f:
+            pkl.dump(output, f)
+
+    return output
+
+def latency_single_cell(psth, tvec, threshold = 0.05, bin_ms = 10, baseline_period_ms = 100, min_latency_ms = 100, period_show_s = 0.5, make_plot = False, save_plot = False, save_path = None):
 
     """ Get latency of go cue response on left and right correct and incorrect trials for a single cell, and plot spike rasters with onset latency indicated.
+
         Inputs:
         psth: dict, output of spike_rasters.get_psth() with the fields: 'left_corr', 'right_corr', 'left_inc', 'right_inc', each of which is a dictionary
               with fields 'all_trials', 'mean', 'sem'. The field 'all_trials' is a n_binsXn_trials float array containing the spike psth.
@@ -11,6 +78,9 @@ def latency_single_cell(psth, tvec, threshold = 0.05, bin_ms = 10, baseline_peri
         threshold: float, default 0.05, probability threshold for determining onset of go cue response
         bin_ms: int, default 10, bin for calculating spike rate after go cue
         baseline_period_ms: int, default 100, period before go cue to calculate baseline spike rate
+        min_latency_ms: int, default 100, plots for neurons with latency lower than this value will be shown upto period_show_s
+        period_show_s: float, default 0.5, see min_latency_ms
+
         Outputs:
         output: dict, with fields
             - 'probability': dict with fields 'left_corr', 'right_corr', 'left_inc', 'right_inc', each of which is a n_binsX1 float array
@@ -62,18 +132,21 @@ def latency_single_cell(psth, tvec, threshold = 0.05, bin_ms = 10, baseline_peri
 
                     latency_time = np.round(tvec[output['latency'][trial_type] + go_cue_frame], 2)
                     ax[row, col].plot([latency_time, latency_time], ylim, linestyle = '--', color = 'r')
-                    ax[0, col].set_title('Latency = {0} ms'.format(latency_time*1000), fontsize = 15)
+                    ax[0, col].set_title('{0}\nLatency = {1} ms'.format(trial_type, latency_time*1000), fontsize = 15)
 
                     if latency_time <= min_latency_ms/1000:
                         ax[row, col].set_xlim([-period_show_s, period_show_s])
                 else:
-                    ax[0, col].set_title('No go cue response', fontsize = 15)
+                    ax[0, col].set_title('{0}\nNo go cue response'.format(trial_type), fontsize = 15)
 
             ax[2, col].set_xlabel('Time from go cue (s)', fontsize = 15)
 
         ax[0, 0].set_ylabel('Trial #', fontsize = 15)
         ax[1, 0].set_ylabel('Spike train', fontsize = 15)
         ax[2, 0].set_ylabel('Probability', fontsize = 15)
+
+        if save_plot:
+            fig.savefig('{0}'.format(save_path))
 
     return output
 
