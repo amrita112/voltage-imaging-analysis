@@ -14,7 +14,9 @@ def k_means_clust(vectors, n_clusters):
     return kmeans.labels_
 
 def norm_vectors(vectors, method = 'z-score'):
-# Normalize a set of vectors such as PSTH. Each row is one cell and each column is a time point.
+""" Normalize a set of vectors such as PSTH. Each row is one cell and each column is a time point.
+    Normalized vector is calculated by subtracting the mean across cells (rows) and dividing by the standard deviation across cells (rows).
+"""
     if method == 'z-score':
         mean_vector = np.mean(vectors, axis = 1)
         assert(len(mean_vector) == vectors.shape[0])
