@@ -31,9 +31,10 @@ def select_n_clusters(vectors, max_n_clust, min_n_clust = 2, n_iter = 10):
 
     scores = np.zeros([n_iter, max_n_clust - min_n_clust])
     print('Running k-means clustering: {0} iterations'.format(n_iter))
-    for iter in tqdm(range(n_iter)):
+    for iter in range(n_iter):
         i = 0
-        for n_clusters in range(min_n_clust, max_n_clust):
+        print('Iteration {0} of {1}'.format(iter + 1, n_iter))
+        for n_clusters in tqdm(range(min_n_clust, max_n_clust)):
             kmeans = KMeans(n_clusters = n_clusters, random_state = i).fit(vectors)
             scores[iter, i] = kmeans.score(vectors)
             i += 1
