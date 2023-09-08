@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 
-def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', figsize = [12, 12], ylim = 0, linecolor = None, cmap = None, vmin = None, vmax = None, vcenter = None, specify_colorbar_limits = False):
+def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', xlabel = 'Time from go cue (s)', figsize = [12, 12], ylim = 0, show_trial_epochs = True, linecolor = None, cmap = None, vmin = None, vmax = None, vcenter = None, specify_colorbar_limits = False):
 
     n_neurons = spike_psth_array.shape[0]
     n_bins = int(spike_psth_array.shape[1]/2)
@@ -29,33 +29,35 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
         plt.text(-10, (cluster_boundaries[n] + cluster_boundaries[n + 1])/2, cluster_names[n],
                  fontsize = 15, rotation = 'vertical')
 
+    plt.xlabel(xlabel, fontsize = 20)
     for tick in ticks:
         plt.plot(np.ones(n_neurons)*tick, list(range(n_neurons)),
                  color = linecolor, linewidth = 2)
     labels = tvec[ticks]
     plt.xticks(ticks = ticks, labels = np.round(labels, 2), fontsize = 18)
-    plt.xlabel('Time from go cue (s)', fontsize = 20)
+    
+    if show_trial_epochs:
 
-    plt.text(n_bins/3, -30, 'Lick left trials', fontsize = 20)
-    plt.text(n_bins + n_bins/3, -30, 'Lick right trials', fontsize = 20)
+        plt.text(n_bins/3, -30, 'Lick left trials', fontsize = 20)
+        plt.text(n_bins + n_bins/3, -30, 'Lick right trials', fontsize = 20)
 
-    x_ps1 = ticks[0] + 0.1*(ticks[1] - ticks[0])
-    x_ps2 = x_ps1 + n_bins
-    x_s1 = ticks[1] + 0.1*(ticks[2] - ticks[1])
-    x_s2 = x_s1 + n_bins
-    x_d1 = ticks[2] + 0.1*(ticks[3] - ticks[2])
-    x_d2 = x_d1 + n_bins
-    x_r1 = ticks[3] + 0.1*(ticks[4] - ticks[3])
-    x_r2 = x_r1 + n_bins
+        x_ps1 = ticks[0] + 0.1*(ticks[1] - ticks[0])
+        x_ps2 = x_ps1 + n_bins
+        x_s1 = ticks[1] + 0.1*(ticks[2] - ticks[1])
+        x_s2 = x_s1 + n_bins
+        x_d1 = ticks[2] + 0.1*(ticks[3] - ticks[2])
+        x_d2 = x_d1 + n_bins
+        x_r1 = ticks[3] + 0.1*(ticks[4] - ticks[3])
+        x_r2 = x_r1 + n_bins
 
-    #plt.text(x_ps1, -2, 'Pre-sample')
-    #plt.text(x_ps2, -2, 'Pre-sample')
-    plt.text(x_s1, -2, 'S', fontsize = 18)
-    plt.text(x_s2, -2, 'S', fontsize = 18)
-    plt.text(x_d1, -2, 'D', fontsize = 18)
-    plt.text(x_d2, -2, 'D', fontsize = 18)
-    plt.text(x_r1, -2, 'R', fontsize = 18)
-    plt.text(x_r2, -2, 'R', fontsize = 18)
+        #plt.text(x_ps1, -2, 'Pre-sample')
+        #plt.text(x_ps2, -2, 'Pre-sample')
+        plt.text(x_s1, -2, 'S', fontsize = 18)
+        plt.text(x_s2, -2, 'S', fontsize = 18)
+        plt.text(x_d1, -2, 'D', fontsize = 18)
+        plt.text(x_d2, -2, 'D', fontsize = 18)
+        plt.text(x_r1, -2, 'R', fontsize = 18)
+        plt.text(x_r2, -2, 'R', fontsize = 18)
 
     if not ylim == 0:
         plt.ylim(ylim)
