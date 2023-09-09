@@ -1,14 +1,15 @@
 from population import population_psth
 import numpy as np
 from matplotlib import pyplot as plt
+from os.path import sep
 
 from scipy.stats import mannwhitneyu
 
 def modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints,
                      metric = 'trial_type_selectivity', method = 'mann_whiteney',
                      trial_types = ['Left', 'Right'], trial_epochs = ['Pre-sample', 'Sample', 'Delay', 'Response'],
-                     baseline_epoch = 'Pre-sample',
-                     plot_example_neurons = 'False'):
+                     baseline_epoch = 'Pre-sample', colors = {'Left': 'r', 'Right': 'b'},
+                     plot_example_neurons = 'False', figsize = [8, 4], savefig = False, save_path = None):
 
     """ Calculate and plot the trial type-selectivity or trial epoch-selectivity index over all neurons in the population.
 
@@ -36,7 +37,7 @@ def modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints
 
     n_types = len(trial_types)
     assert(n_types == 2)
-    assert(np.all(list(activity_dict.keys())) == trial_types)
+    assert(np.all(list(activity_dict.keys()) == trial_types))
 
     n_cells = len(activity_dict[trial_types[0]].keys())
     for type in trial_types:
@@ -61,7 +62,17 @@ def modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints
                     v2 = np.mean(activity_dict[trial_types[1]][cell][:, t1:t2], axis = 1)
                     assert(len(v2) == activity_dict[trial_types[1]][cell].shape[0])
 
-                    mod_ind[epochs[e]][cell] = compare_activity(v1, v2, method)
+                    mod_ind[trial_epochs[e]][cell] = compare_activity(v1, v2, method)
+
+        plt.figure(constrained_layout = True, figsize = figsize)
+        for e in range(n_epochs):
+            plt.boxplot(mod_ind[trial_epochs[e]], positions = [e + 1])
+
+        plt.xticks(list(range(1, n_epochs + 1)), labels = trial_epochs)
+        plt.ylabel('left-right selectivity\n({0})'.format(method))
+        if savefig:
+            plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, metric, method))
+
     else:
         if metric == 'trial_epoch_selectivity':
             mod_ind = {epoch: np.zeros([n_cells, n_types]) for epoch in trial_epochs}
@@ -86,13 +97,39 @@ def modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints
                         v1 = np.mean(activity_dict[trial_types[0]][cell][:, t1:t2], axis = 1)
                         assert(len(v1) == activity_dict[trial_types[0]][cell].shape[0])
 
-                        mod_ind[epoch][cell, 0] = compare_activity(vb1, v1, method)
+                        mod_ind[trial_epochs[e]][cell, 0] = compare_activity(v1, vb1, method)
 
                         # Modulation index for trial type 2
                         v2 = np.mean(activity_dict[trial_types[1]][cell][:, t1:t2], axis = 1)
                         assert(len(v2) == activity_dict[trial_types[1]][cell].shape[0])
 
-                        mod_ind[epoch][cell, 1] = compare_activity(vb2, v2, method)
+                        mod_ind[trial_epochs[e]][cell, 1] = compare_activity(v2, vb2, method)
+
+            plt.figure(constrained_layout = True, figsize = figsize)
+            for e in range(n_epochs):
+                if not e == baseline_epoch_no:
+
+                    c = colors[trial_types[0]]
+                    plt.boxplot(mod_ind[trial_epochs[e]][:, 0], positions = [e + 0.25], patch_artist=True,
+                                    boxprops=dict(facecolor=c, color=c),
+                                    capprops=dict(color=c),
+                                    whiskerprops=dict(color=c),
+                                    flierprops=dict(color=c, markeredgecolor=c),
+                                    medianprops=dict(color=c))
+
+                    c = colors[trial_types[1]]
+                    plt.boxplot(mod_ind[trial_epochs[e]][:, 1], positions = [e + 0.5], patch_artist=True,
+                                    boxprops=dict(facecolor=c, color=c),
+                                    capprops=dict(color=c),
+                                    whiskerprops=dict(color=c),
+                                    flierprops=dict(color=c, markeredgecolor=c),
+                                    medianprops=dict(color=c))
+
+            plt.xticks([e + 0.375 for e in range(n_epochs) if not e == baseline_epoch_no],
+                        labels = [e for e in trial_epochs if not e == baseline_epoch])
+            plt.ylabel('Modulation in trial epoch\ncompared to baseline ({0})'.format(method))
+            if savefig:
+                plt.savefig('{0}{1}{2}_{3}.png'.format(save_path, sep, metric, method))
 
         else:
             if metric == 'tuning_curve_variance':
