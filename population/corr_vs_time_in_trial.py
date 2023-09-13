@@ -5,8 +5,9 @@ from os.path import sep
 
 from population import clustering
 
-def plot_pop_corr(activity_dict, epoch_start_timepoints,
-                  trial_types = ['Left', 'Right'], figsize = [10, 10], savefig = False, save_path = None):
+def plot_pop_corr(activity_dict, epoch_start_timepoints, epoch_end_timepoints, tvec,
+                  trial_types = ['Left', 'Right'],
+                  figsize = [10, 10], savefig = False, save_path = None):
     """Plot a heatmap showing the correlation of the population activity vector for each timepoint in a trial with each other timepoint.
        Inputs:
        activity_dict: Dictionary with a key-value pair for each trial type, itself containing a dictionary with keys 0, 1, 2... n_cells
@@ -24,6 +25,9 @@ def plot_pop_corr(activity_dict, epoch_start_timepoints,
 
     n_timepoints = activity_dict[type][0].shape[1]
     assert(n_timepoints > np.max(epoch_start_timepoints))
+    assert(len(tvec) == n_timepoints)
+    sdr_loc = -0.1*n_timepoints
+    trial_type_loc = -0.2*n_timepoints
 
     # Build two population activity matrices, with the two trial types concatenated, using a randomly selectd half of trials for each.
     activity_matrix1 = np.zeros([n_cells, 2*n_timepoints])
@@ -63,4 +67,52 @@ def plot_pop_corr(activity_dict, epoch_start_timepoints,
     # Plot correlation as a heat map
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = figsize, constrained_layout = True)
     plot = ax.imshow(correlation, cmap = 'jet', vmin = 0, vmax = 1)
+
+    # Indicate epoch starts
+    for t in epoch_start_timepoints:
+
+        if t == 0:
+            ls = '-'
+        else:
+            ls = '--'
+
+        # Vertical lines
+        plt.plot([t, t], [0, 2*n_timepoints], color = 'k', linestyle = ls)
+        plt.plot([t + n_timepoints, t + n_timepoints], [0, 2*n_timepoints], color = 'k', linestyle = ls)
+
+        # Horizontal lines
+        plt.plot([0, 2*n_timepoints], [t, t], color = 'k', linestyle = ls)
+        plt.plot([0, 2*n_timepoints], [t + n_timepoints, t + n_timepoints], color = 'k', linestyle = ls)
+
+    ticks = np.concatenate([epoch_start_timepoints[1:], [t + n_timepoints for t in epoch_start_timepoints[1:]]])
+    labels = np.concatenate([np.round([tvec[t] for t in epoch_start_timepoints[1:]], 2),
+                                np.round([tvec[t] for t in epoch_start_timepoints[1:]], 2)])
+    plt.xticks(ticks, labels = labels)
+    plt.yticks(ticks, labels = labels)
+
+    text_locs_left = [(epoch_start_timepoints[i] + epoch_end_timepoints[i])/2 for i in [0, 1, 2]]
+    text_locs_right = [l + n_timepoints for l in text_locs_left]
+
+    for [s, d, r] in [text_locs_left, text_locs_right]:
+        plt.text(s, sdr_loc, 'S')
+        #plt.text(sdr_loc, s, '')
+        plt.text(d, sdr_loc, 'D')
+        #plt.text(sdr_loc, d, 'D')
+        plt.text(r, sdr_loc, 'R')
+        #plt.text(sdr_loc, r, 'R')
+
+    plt.text(text_locs_left[0], trial_type_loc, 'Left Trials')
+    #plt.text(trial_type_loc, text_locs_left[0], 'Left Trials')
+    plt.text(text_locs_right[0], trial_type_loc, 'Right Trials')
+    #plt.text(trial_type_loc, text_locs_right[0], 'Right Trials')
+
+    plt.xlabel('Time from go cue (s)')
+    plt.ylabel('Time from go cue (s)')
+
+    plt.xlim([0, 2*n_timepoints])
+    plt.ylim([2*n_timepoints, 0])
+
     plt.colorbar(mappable = plot, ax = ax, label = 'Pearson\'s correlation of\npopulation activity vector')
+
+    if savefig:
+        plt.savefig('{0}{1}correlation_vs_time.png'.format(save_path, sep))
