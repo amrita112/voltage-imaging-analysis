@@ -5,6 +5,67 @@ from os.path import sep
 
 from scipy.stats import mannwhitneyu
 
+def plot_modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints, method = 'mann_whiteney',
+                            trial_types = ['Left', 'Right'], trial_epochs = ['Pre-sample', 'Sample', 'Delay', 'Response'],
+                            baseline_epoch = 'Pre-sample', colors = {'Left': 'r', 'Right': 'b'},
+                            figsize = [8, 4], savefig = False, save_path = None):
+
+    """ Calculate and plot (in a single figure) the trial type-selectivity AND trial epoch-selectivity index over all neurons in the population.
+
+        Inputs:
+        activity_dict: Dictionary with a key-value pair for each trial type, itself containing a dictionary with keys 0, 1, 2... n_cells
+                       with a n_trials X n_timepoints activity matrix for each cell
+        epoch_start_timepoints: list of starting timepoint for each epoch. Should be equal in length to trial_epochs
+        epoch_end_timepoints: list of ending timepoint for each epoch. Should be equal in length to trial_epochs
+        method: String, 'mann_whiteney' (default) or 'd-prime' - method for comparing activity in trial types/epochs.
+        trial_types: list of trial types, should match activity_dict.keys(). Currently, only two trial types are supported.
+        trial_epochs: list of trial_epochs. Should be equal in length to epoch_start_timepoints
+        baseline_epoch: String, one of the elements of trial_epochs. Used as a comparison for calculating trial epoch modulation index
+    """
+
+    trial_type_mod_ind = modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints,
+                                             metric = 'trial_type_selectivity', method = method,
+                                             trial_types = trial_types, trial_epochs = trial_epochs,
+                                             baseline_epoch = baseline_epoch)
+
+    trial_epoch_mod_ind = modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints,
+                                             metric = 'trial_type_selectivity', method = method,
+                                             trial_types = trial_types, trial_epochs = trial_epochs,
+                                             baseline_epoch = baseline_epoch)
+
+    fig, ax1 = plt.subplots(constrained_layout = True, figsize = figsize)
+    for e in range(n_epochs):
+        ax1.boxplot(trial_type_mod_ind[trial_epochs[e]], positions = [e])
+
+    ax1.set_xticks([e + 0.25 for e in epochs], labels = trial_epochs)
+    ax1.ylabel('Trial type-selectivity'.format(method))
+
+    ax2 = ax1.twinx()
+    for e in range(n_epochs):
+        if not e == baseline_epoch_no:
+
+            c = colors[trial_types[0]]
+            ax2.boxplot(trial_epoch_mod_ind[trial_epochs[e]][:, 0], positions = [e + 0.25], patch_artist=True,
+                            boxprops=dict(facecolor=c, color=c),
+                            capprops=dict(color=c),
+                            whiskerprops=dict(color=c),
+                            flierprops=dict(color=c, markeredgecolor=c),
+                            medianprops=dict(color=c))
+
+            c = colors[trial_types[1]]
+            ax2.boxplot(trial_epoch_mod_ind[trial_epochs[e]][:, 1], positions = [e + 0.5], patch_artist=True,
+                            boxprops=dict(facecolor=c, color=c),
+                            capprops=dict(color=c),
+                            whiskerprops=dict(color=c),
+                            flierprops=dict(color=c, markeredgecolor=c),
+                            medianprops=dict(color=c))
+
+    ax2.set_ylabel('Modulation in trial epoch\non left and right trials')
+
+    if savefig:
+        plt.savefig('{0}{1}Modulation_index_{2}.png'.format(save_path, sep, method))
+
+
 def modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints,
                      metric = 'trial_type_selectivity', method = 'mann_whiteney',
                      trial_types = ['Left', 'Right'], trial_epochs = ['Pre-sample', 'Sample', 'Delay', 'Response'],
