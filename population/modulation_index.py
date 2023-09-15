@@ -184,6 +184,7 @@ def compare_activity(v1, v2, method = 'mann_whiteney', pval_threshold = 0.05):
                     d_prime = 0
                 else:
                     print('Unequal means with zero variance')
+                    d_prime = 0
             else:
                 d_prime = np.divide(np.mean(v1) - np.mean(v2), (np.std(v1) + np.std(v2))/2)
             return d_prime
