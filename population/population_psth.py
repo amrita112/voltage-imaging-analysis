@@ -794,6 +794,7 @@ def filt_dFF(trace, filter_freq, frame_rate, filter_type = 'lp', order = 3):
 
 def get_population_tvec(movies, cells, data_paths, metadata_file, blocks, go_cue_time, sample_start_time, sample_end_time, trial_types_left_right_cor_inc, bin_size_ms, ):
 
+    output = {}
     pre_sample_bins = {}
     sample_bins = {}
     delay_bins = {}
@@ -830,4 +831,13 @@ def get_population_tvec(movies, cells, data_paths, metadata_file, blocks, go_cue
     bin_edges_ms = np.arange(0, (n_bins + 1)*bin_size_ms, bin_size_ms)
     population_tvec = bin_edges_ms[1:]/1000
 
-    return population_tvec
+    output['tvec'] = population_tvec
+    output['sample_start_bin_left'] = min_pre_sample_bins - 1 # Corresponding to last time point in last pre-sample bin
+    output['sample_end_bin_left'] = min_pre_sample_bins + len(sample_bins[movies[0]]) - 1 # Corresponding to last time point in last sample bin
+    output['go_cue_bin_left'] = min_pre_sample_bins + len(sample_bins[movies[0]]) + len(delay_bins[movies[0]]) - 1 # Corresponding to last time point in last delay bin
+    output['trial_start_bin_right'] = n_bins - 1
+    output['sample_start_bin_right'] = n_bins + min_pre_sample_bins - 1
+    output['sample_end_bin_right'] = n_bins + min_pre_sample_bins + len(sample_bins[movies[0]]) - 1
+    output['go_cue_bin_right'] = n_bins + min_pre_sample_bins + len(sample_bins[movies[0]]) + len(delay_bins[movies[0]]) - 1
+
+    return output
