@@ -29,19 +29,20 @@ def plot_modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timep
                                              baseline_epoch = baseline_epoch)
 
     trial_epoch_mod_ind = modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timepoints,
-                                             metric = 'trial_type_selectivity', method = method,
+                                             metric = 'trial_epoch_selectivity', method = method,
                                              trial_types = trial_types, trial_epochs = trial_epochs,
                                              baseline_epoch = baseline_epoch)
 
     fig, ax1 = plt.subplots(constrained_layout = True, figsize = figsize)
+    n_epochs = len(trial_epochs)
     for e in range(n_epochs):
         ax1.boxplot(trial_type_mod_ind[trial_epochs[e]], positions = [e])
 
-    ax1.set_xticks([e + 0.25 for e in epochs], labels = trial_epochs)
-    ax1.ylabel('Trial type-selectivity'.format(method))
+    ax1.set_ylabel('Trial type-selectivity'.format(method))
 
     ax2 = ax1.twinx()
     for e in range(n_epochs):
+        baseline_epoch_no = trial_epochs.index(baseline_epoch)
         if not e == baseline_epoch_no:
 
             c = colors[trial_types[0]]
@@ -61,6 +62,8 @@ def plot_modulation_index(activity_dict, epoch_start_timepoints, epoch_end_timep
                             medianprops=dict(color=c))
 
     ax2.set_ylabel('Modulation in trial epoch\non left and right trials')
+    ax1.set_xticks([e + 0.25 for e in range(n_epochs)])
+    ax1.set_xticklabels(trial_epochs)
 
     if savefig:
         plt.savefig('{0}{1}Modulation_index_{2}.png'.format(save_path, sep, method))
