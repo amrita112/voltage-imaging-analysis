@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 
-def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', xlabel = 'Time from go cue (s)', figsize = [12, 12], ylim = 0, show_trial_epochs = True, linecolor = None, cmap = None, vmin = None, vmax = None, vcenter = None, specify_colorbar_limits = False):
+def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', xlabel = 'Time from go cue (s)', figsize = [12, 12], ylim = 0, show_trial_epochs = True, linecolor = None, cmap = None, norm = None, vmin = None, vmax = None, vcenter = None, specify_colorbar_limits = False):
 
     n_neurons = spike_psth_array.shape[0]
     n_bins = int(spike_psth_array.shape[1]/2)
@@ -11,7 +11,8 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
 
     plt.figure(constrained_layout = True, figsize = figsize)
     if specify_colorbar_limits:
-        norm = matplotlib.colors.TwoSlopeNorm(vmin = vmin, vmax = vmax, vcenter = vcenter)
+        if norm == None:
+            norm = matplotlib.colors.TwoSlopeNorm(vmin = vmin, vmax = vmax, vcenter = vcenter)
         plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto', norm = norm, cmap = cmap)
     else:
         plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto')
@@ -35,7 +36,7 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
                  color = linecolor, linewidth = 2)
     labels = tvec[ticks]
     plt.xticks(ticks = ticks, labels = np.round(labels, 2), fontsize = 18)
-    
+
     if show_trial_epochs:
 
         plt.text(n_bins/3, -30, 'Lick left trials', fontsize = 20)

@@ -90,7 +90,7 @@ def plot_pop_corr(activity_dict, epoch_start_timepoints, epoch_end_timepoints, t
     plt.xticks(ticks, labels = labels)
     plt.yticks(ticks, labels = labels)
 
-    text_locs_left = [(epoch_start_timepoints[i] + epoch_end_timepoints[i])/2 for i in [0, 1, 2]]
+    text_locs_left = [(epoch_start_timepoints[i] + epoch_end_timepoints[i])/2 for i in [1, 2, 3]]
     text_locs_right = [l + n_timepoints for l in text_locs_left]
 
     for [s, d, r] in [text_locs_left, text_locs_right]:
