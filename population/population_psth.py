@@ -791,3 +791,43 @@ def filt_dFF(trace, filter_freq, frame_rate, filter_type = 'lp', order = 3):
     else:
         signal = trace
     return signal
+
+def get_population_tvec(movies, cells, data_paths, metadata_file, blocks, go_cue_time, sample_start_time, sample_end_time, trial_types_left_right_cor_inc, bin_size_ms, ):
+
+    pre_sample_bins = {}
+    sample_bins = {}
+    delay_bins = {}
+    response_bins = {}
+    min_pre_sample_bins = np.inf
+    min_response_bins = np.inf
+
+    for movie in tqdm(movies):
+        if len(cells[movie]) == 0:
+            print('         Movie {0}: No cells pass SNR cutoff'.format(movie))
+            continue
+        trial_types_left_right_cor_inc = process_bpod_data.get_trial_types(data_paths[movie], metadata_file)
+        spike_times_trials = get_spike_times_trials(data_paths[movie], metadata_file,
+                                        list(cells[movie].astype(int)), blocks[movie], go_cue_time[movies.index(movie)], trial_types_left_right_cor_inc, overwrite = False)
+        bin_edges_ms = np.arange(0, spike_times_trials['min_trial_time_s']*1000 + bin_size_ms, bin_size_ms)
+        pre_sample_bins[movie] = np.where(bin_edges_ms < sample_start_time[movies.index(movie)]*1000)[0]
+        sample_bins[movie] = len(pre_sample_bins[movie]) + np.where(bin_edges_ms[pre_sample_bins[movie][-1] + 1:] < sample_end_time[movies.index(movie)]*1000)[0]
+        delay_bins[movie] = sample_bins[movie][-1] + 1 + np.where(bin_edges_ms[sample_bins[movie][-1] + 1:] < go_cue_time[movies.index(movie)]*1000)[0]
+        response_bins[movie] = list(range(delay_bins[movie][-1] + 1, len(bin_edges_ms)))
+        if len(pre_sample_bins[movie]) < min_pre_sample_bins:
+            min_pre_sample_bins = len(pre_sample_bins[movie])
+        if len(response_bins[movie]) < min_response_bins:
+            min_response_bins = len(response_bins[movie])
+
+
+    # All movies have same number of bins in sample period and delay period
+    assert(np.var([len(v) for (k, v) in sample_bins.items()]) == 0)
+    assert(np.var([len(v) for (k, v) in delay_bins.items()]) == 0)
+
+    print('Minimum pre-sample period = {0}s'.format(min_pre_sample_bins*bin_size_ms/1000))
+    print('Minimum response period = {0}s'.format(min_response_bins*bin_size_ms/1000))
+
+    n_bins = min_pre_sample_bins + len(sample_bins[movies[0]]) + len(delay_bins[movies[0]]) + min_response_bins
+    bin_edges_ms = np.arange(0, (n_bins + 1)*bin_size_ms, bin_size_ms)
+    population_tvec = bin_edges_ms[1:]/1000
+
+    return population_tvec
