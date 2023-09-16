@@ -829,7 +829,7 @@ def get_population_tvec(movies, cells, data_paths, metadata_file, blocks, go_cue
 
     n_bins = min_pre_sample_bins + len(sample_bins[movies[0]]) + len(delay_bins[movies[0]]) + min_response_bins
     bin_edges_ms = np.arange(0, (n_bins + 1)*bin_size_ms, bin_size_ms)
-    population_tvec = bin_edges_ms[1:]/1000
+    population_tvec = (bin_edges_ms[1:] + bin_edges_ms[:-1])/2000
 
     output['tvec'] = population_tvec
     output['sample_start_bin_left'] = min_pre_sample_bins - 1 # Corresponding to last time point in last pre-sample bin
