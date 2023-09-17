@@ -839,5 +839,6 @@ def get_population_tvec(movies, cells, data_paths, metadata_file, blocks, go_cue
     output['sample_start_bin_right'] = n_bins + min_pre_sample_bins - 1
     output['sample_end_bin_right'] = n_bins + min_pre_sample_bins + len(sample_bins[movies[0]]) - 1
     output['go_cue_bin_right'] = n_bins + min_pre_sample_bins + len(sample_bins[movies[0]]) + len(delay_bins[movies[0]]) - 1
+    output['bin_edges_s'] = bin_edges_ms/1000
 
     return output
