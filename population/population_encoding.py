@@ -1,118 +1,138 @@
 from population import population_psth
 import numpy as np
 from matplotlib import pyplot as plt
-from sklearn.linear_model import LinearRegression as linregress
+from sklearn.linear_model import LogisticRegression as logregress
 
-# Test how well trial type and trial epoch are encoded by the population
+def main(activity_dict, tvec, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, min_trials_train = 10, min_trials_test = 5, test_fraction = 2/3, penalty = 'l2', reg_strength = 1, random_state = None, max_iter = 100, plot_train_set = False, plot_reg_coeffs = False):
+    """Test how well trial type and trial epoch are encoded by the population
+    """
+    trial_types = list(activity_dict.keys())
+    n_cells = len(activity_dict[trial_types[0]].keys())
 
-def main(population_data_path, metadata_file, movies, data_paths, genotype, plot_coeffs = False, min_trials_train = 10, min_trials_test = 5):
+    # Divide trials into test and train set
+    n_trials = {type: {cell: activity_dict[type][cell].shape[0] for cell in list(activity_dict[type].keys())} for type in trial_types}
+    (test_train_set, cells_keep) = get_test_train(n_trials, trial_types,
+                                                    min_trials_train = min_trials_train, min_trials_test = min_trials_test,
+                                                    test_fraction = test_fraction)
 
-    psth = population_psth.get_population_psth(population_data_path, movies, data_paths, metadata_file, genotype,
-                                                 make_plot_spike_psth = False, make_plot_dFF_psth = False, plot_psths = False)
-    spike_counts = {'left': psth['spikes']['spike_count_trials_left'],
-                    'right': psth['spikes']['spike_count_trials_right']}
-    cells = list(spike_counts['left'].keys())
-    n_trials = {'left': {cell: spike_counts['left'][cell].shape[0] for cell in cells},
-                'right': {cell: spike_counts['right'][cell].shape[0] for cell in cells}}
+    # Train model
+    print('Training model')
+    model = train_model(test_train_set, activity_dict, tvec, cells_keep, trial_types, trial_epochs,
+                        epoch_start_timepoints, epoch_end_timepoints,
+                        penalty = penalty, reg_strength = reg_strength,
+                        random_state = random_state, max_iter = max_iter,
+                        plot_reg_coeffs = plot_reg_coeffs, plot_train_set = plot_train_set)
 
-    test_train_set = get_test_train(n_trials, min_trials_train = min_trials_train, min_trials_test = min_trials_test)
-    model = build_model(test_train_set, spike_counts, make_plots = plot_coeffs)
-    accuracy = pred_accuracy(model, test_train_set, spike_counts)
-    print(accuracy)
+    #accuracy = pred_accuracy(model, test_train_set, spike_counts)
+    #print(accuracy)
 
-def get_test_train(n_trials, min_trials_train = 10, min_trials_test = 5):
+def get_test_train(n_trials, trial_types, min_trials_train = 10, min_trials_test = 5, test_fraction = 2/3):
 
-    cell_ids = list(n_trials['left'].keys())
-    test_train_set = {'left': {'test': {}, 'train': {}},
-                      'right': {'test': {}, 'train': {}}}
+    test_train_set = {type: {'test': {}, 'train': {}} for type in trial_types}
+    cell_ids = list(n_trials[trial_types[0]].keys())
 
-    n_trials_left = np.array(list(n_trials['left'].values()))
-    min_left = np.min(n_trials_left)
-    if min_left < min_trials_train + min_trials_test:
-        min_left = min_trials_train + min_trials_test
-        cells_keep = np.where(n_trials_left >= min_left)[0]
-    else:
-        cells_keep = list(range(len(cell_ids)))
-    test_train_set['n_train_left'] = int(min_left*2/3)
-    test_train_set['n_test_left'] = min_left - test_train_set['n_train_left']
+    for type in trial_types:
+        n_trials_type = np.array(list(n_trials[type].values()))
+        min_type = np.min(n_trials_type)
+        if min_type > min_trials_train + min_trials_test:
+            # Every cell has enough trials
+            test_train_set[type]['n_trials'] = min_type
+        else:
+            # Some cells have too few trials
+            test_train_set[type]['n_trials'] = min_trials_train + min_trials_test
 
-    n_trials_right = np.array(list(n_trials['right'].values()))
-    min_right = np.min(n_trials_right)
-    if min_right < min_trials_train + min_trials_test:
-        min_right = min_trials_train + min_trials_test
-        cells_keep = [cell for cell in cells_keep if n_trials['right'][cell_ids[cell]] >= min_right]
-    test_train_set['n_train_right'] = int(min_right*2/3)
-    test_train_set['n_test_right'] = min_right - test_train_set['n_train_right']
+        test_train_set[type]['n_train'] = int(test_train_set[type]['n_trials']*test_fraction)
+        test_train_set[type]['n_test'] = test_train_set[type]['n_trials'] - test_train_set[type]['n_train']
 
-    print('Building model using {0} left trials and {1} right trials for {2} cells'.format(test_train_set['n_train_left'], test_train_set['n_train_right'], len(cells_keep)))
-    print('Testing model using {0} left trials and {1} right trials for {2} cells'.format(test_train_set['n_test_left'], test_train_set['n_test_right'], len(cells_keep)))
+    cells_keep = [cell for cell in cell_ids if np.all([n_trials[type][cell] >= test_train_set[type]['n_trials'] for type in trial_types])]
+
+    print('Training model using')
+    for type in trial_types:
+        print('     {0} {1} trials'.format(test_train_set[type]['n_train'], type))
+
+    print('Testing model using')
+    for type in trial_types:
+        print('     {0} {1} trials'.format(test_train_set[type]['n_test'], type))
+
+    print('for {0} cells'.format(len(cells_keep)))
 
     for cell in cells_keep:
 
-        cell_id = cell_ids[cell]
-        n_left_trials = n_trials['left'][cell_id]
-        train = np.random.choice(list(range(n_left_trials)), test_train_set['n_train_left'], replace = False)
-        test = [trial for trial in list(range(n_left_trials)) if not trial in train]
-        assert(len(train) + len(test) == n_left_trials)
+        for type in trial_types:
+            # Choose trials for training set
+            n_trials_type = n_trials[type][cell]
+            train = np.random.choice(list(range(n_trials_type)), test_train_set[type]['n_train'], replace = False)
+            test = [trial for trial in list(range(n_trials_type)) if not trial in train]
+            assert(len(train) + len(test) == n_trials_type)
 
-        test = np.random.choice(test, test_train_set['n_test_left'], replace = False)
-        test_train_set['left']['test'][cell_id] = test
-        test_train_set['left']['train'][cell_id] = train
+            # Choose trials for test set
+            test = np.random.choice(test, test_train_set[type]['n_test'], replace = False)
 
-        n_right_trials = n_trials['right'][cell_id]
-        train = np.random.choice(list(range(n_right_trials)), test_train_set['n_train_right'], replace = False)
-        test = [trial for trial in list(range(n_right_trials)) if not trial in train]
-        assert(len(test) + len(train) == n_right_trials)
+            test_train_set[type]['test'][cell] = test
+            test_train_set[type]['train'][cell] = train
 
-        test = np.random.choice(test, test_train_set['n_test_right'], replace = False)
-        test_train_set['right']['test'][cell_id] = test
-        test_train_set['right']['train'][cell_id] = train
+    return (test_train_set, cells_keep)
 
-    return test_train_set
+def train_model(test_train_set, activity_dict, tvec, cells_keep, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, penalty = 'l2', dual = False, solver = 'lbfgs', reg_strength = 1, random_state = None, max_iter = 100, plot_reg_coeffs = False, plot_train_set = False,):
 
-def build_model(test_train_set, spike_counts, make_plots = False):
-
-    n_left_samples = 4*test_train_set['n_train_left']
-    n_right_samples = 4*test_train_set['n_train_right']
-    n_samples = n_left_samples + n_right_samples
-    cell_ids = list(test_train_set['left']['train'].keys())
+    cell_ids = list(test_train_set[trial_types[0]]['train'].keys())
     n_cells = len(cell_ids)
+    n_features = n_cells
+    n_timepoints = activity_dict[trial_types[0]][cell_ids[0]].shape[1]
+    n_samples = np.sum([test_train_set[type]['n_train'] for type in trial_types])*n_timepoints # Number of samples for single trial type
+    assert(len(tvec) == n_timepoints)
+    n_types = len(trial_types)
+    n_epochs = len(epoch_start_timepoints)
 
-    X = np.zeros([n_samples, n_cells]) # Training data
+    labels = np.zeros(n_timepoints)
+    for tp in range(n_timepoints):
+        e = np.where(np.array(epoch_start_timepoints) <= tp)[0][-1]
+        assert(epoch_end_timepoints[e] > tp)
+        labels[tp] = e
+
+    X = np.zeros([n_samples, n_features]) # Training data
     y = np.zeros(n_samples) # Training labels (trial type + epoch)
 
-    for trial_no in range(test_train_set['n_train_left']):
-        for cell in range(n_cells):
+    total_trials = 0
+    for type_no in range(n_types):
 
-            cell_id = cell_ids[cell]
-            trial_id = test_train_set['left']['train'][cell_id][trial_no]
+        type = trial_types[type_no]
 
-            for i in range(4):
-                sample_no = trial_no*4 + i
-                X[sample_no, cell] = spike_counts['left'][cell_id][trial_id, i]
-                y[sample_no] = i
+        for trial_no in range(test_train_set[type]['n_train']):
+            sample1 = total_trials*n_timepoints
+            sample2 = (total_trials + 1)*n_timepoints
 
-    for trial_no in range(test_train_set['n_train_right']):
-        for cell in range(n_cells):
+            # Training labels
+            y[sample1:sample2] = labels + type_no*n_epochs
 
-            cell_id = cell_ids[cell]
-            trial_id = test_train_set['right']['train'][cell_id][trial_no]
+            # Training data
+            for cell_no in range(n_cells):
+                cell = cell_ids[cell_no]
+                X[sample1:sample2, cell_no] = activity_dict[type][cell][test_train_set[type]['train'][cell][trial_no], :]
 
-            for i in range(4):
-                sample_no = n_left_samples + trial_no*4 + i
-                X[sample_no, cell] = spike_counts['right'][cell_id][trial_id, i]
-                y[sample_no] = i + 4
+            total_trials += 1
 
-    model = linregress()
+    model = logregress(penalty = penalty, dual = dual, C = reg_strength, random_state = random_state, multi_class = 'multinomial', solver = solver, max_iter = max_iter)
     model.fit(X, y)
 
-    coefficients = model.coef_
-    if make_plots:
+    if plot_train_set:
+        fig, ax = plt.subplots(nrows = 2, ncols = 1, constrained_layout = True, sharex = True)
+        ax[0].plot(y)
+        ax[0].set_ylabel('Training label')
+        ax[1].imshow(np.transpose(X), aspect = 'auto')
+        ax[1].set_xlabel('Sample #')
+        ax[1].set_ylabel('Cell #')
+        ax[1].set_ylim([n_cells, 0])
 
-        plt.figure()
-        plt.plot(coefficients, color = 'k')
+    if plot_reg_coeffs:
+        plt.figure(constrained_layout = True, figsize = [8, 3])
+        plt.imshow(model.coef_, aspect = 'auto', cmap = 'bwr')
+        for type_no in range(n_types):
+            for e in range(n_epochs):
+                plt.plot([0, n_cells], [e + type_no*n_epochs - 0.5, e + type_no*n_epochs - 0.5], color = 'k', linewidth = 0.5)
+        plt.colorbar(label = 'Coefficients')
         plt.xlabel('Neuron #')
-        plt.ylabel('Regression coefficient')
+        plt.ylabel('Class #')
 
     return model
 
