@@ -149,7 +149,7 @@ def train_model(test_train_set, activity_dict, tvec, cells_keep, trial_types, tr
 
     return model
 
-def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, test_trial_avg = False, reg_strength = 1, make_plot = False, plots_path = None):
+def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, test_trial_avg = False, reg_strength = 1, make_plot = False, figsize = [4, 4], plots_path = None):
 
     cell_ids = list(test_train_set[trial_types[0]]['train'].keys())
     n_cells = len(cell_ids)
@@ -224,10 +224,10 @@ def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_ep
         conf_matrix[label, :] = conf_matrix[label, :]/freq_true[label]
 
     if make_plot:
-        plt.figure(constrained_layout = True)
+        plt.figure(constrained_layout = True, figsize = figsize)
         plt.imshow(conf_matrix)
         cbar = plt.colorbar()
-        cbar.ax.tick_params(size = 8)
+        cbar.ax.tick_params(labelsize = 8)
         cbar.set_label(label = 'Fraction labeled', size = 10)
         plt.ylabel('True label', fontsize = 12)
         plt.title('Predicted label', fontsize = 12)
