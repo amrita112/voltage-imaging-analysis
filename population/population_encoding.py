@@ -25,7 +25,7 @@ def main(activity_dict, tvec, trial_types, trial_epochs, epoch_start_timepoints,
                         epoch_start_timepoints, epoch_end_timepoints,
                         penalty = penalty, reg_strength = reg_strength,
                         random_state = random_state, max_iter = max_iter,
-                        plot_reg_coeffs = plot_reg_coeffs, plot_train_set = plot_train_set)
+                        plot_reg_coeffs = plot_reg_coeffs, plot_train_set = plot_train_set, plots_path = plots_path)
 
     conf_matrix = confusion_matrix(model, test_train_set, activity_dict,
                                    trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints,
@@ -83,7 +83,7 @@ def get_test_train(n_trials, trial_types, min_trials_train = 10, min_trials_test
 
     return (test_train_set, cells_keep)
 
-def train_model(test_train_set, activity_dict, tvec, cells_keep, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, penalty = 'l2', dual = False, solver = 'lbfgs', reg_strength = 1, random_state = None, max_iter = 100, plot_reg_coeffs = False, plot_train_set = False,):
+def train_model(test_train_set, activity_dict, tvec, cells_keep, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, penalty = 'l2', dual = False, solver = 'lbfgs', reg_strength = 1, random_state = None, max_iter = 100, plot_reg_coeffs = False, plot_train_set = False, plots_path = None):
 
     cell_ids = list(test_train_set[trial_types[0]]['train'].keys())
     n_cells = len(cell_ids)
@@ -135,17 +135,22 @@ def train_model(test_train_set, activity_dict, tvec, cells_keep, trial_types, tr
         ax[1].set_ylim([n_cells, 0])
 
     if plot_reg_coeffs:
-        plt.figure(constrained_layout = True, figsize = [8, 2])
+        plt.figure(constrained_layout = True, figsize = [8, 1.8])
         coefs = model.coef_
         kmeans = KMeans(n_clusters = n_types*n_epochs).fit(np.transpose(coefs))
-        plt.imshow(coefs[:, np.argsort(kmeans.labels_)], aspect = 'auto', cmap = 'bwr', norm = utils.get_two_slope_norm(coefs, 1, medium_value = 0))
+        plt.imshow(coefs[:, np.argsort(kmeans.labels_)], aspect = 'auto', cmap = 'bwr', interpolation = 'none',
+                   norm = utils.get_two_slope_norm(coefs, 1, medium_value = 0))
         #plt.imshow(coefs, aspect = 'auto', cmap = 'bwr', norm = utils.get_two_slope_norm(coefs, 1, medium_value = 0))
         for type_no in range(n_types):
             for e in range(n_epochs):
                 plt.plot([0, n_cells], [e + type_no*n_epochs - 0.5, e + type_no*n_epochs - 0.5], color = 'k', linewidth = 0.5)
-        plt.colorbar(label = 'Coefficients')
-        plt.xlabel('Neuron #')
-        plt.ylabel('Class #')
+        cbar = plt.colorbar(fraction=0.046, pad=0.04)
+        cbar.set_label(label = 'Coefficients', fontsize = 10)
+        cbar.ax.tick_params(labelsize = 8)
+        plt.xlabel('Neuron #', fontsize = 10)
+        plt.ylabel('Class #', fontsize = 10)
+        plt.gca().tick_params(axis='both', which='major', labelsize = 8)
+        plt.savefig('{0}{1}training_data_reg_str_{2}.png'.format(plots_path, sep, reg_strength))
 
     return model
 
@@ -226,19 +231,19 @@ def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_ep
     if make_plot:
         plt.figure(constrained_layout = True, figsize = figsize)
         plt.imshow(conf_matrix)
-        cbar = plt.colorbar()
+        cbar = plt.colorbar(shrink = 0.5)
         cbar.ax.tick_params(labelsize = 8)
         cbar.set_label(label = 'Fraction labeled', size = 10)
         plt.ylabel('True label', fontsize = 12)
-        plt.title('Predicted label', fontsize = 12)
-        plt.xticks(list(range(n_classes)), labels = np.concatenate([trial_epochs, trial_epochs]))
+        plt.xlabel('Predicted label', fontsize = 12)
+        plt.xticks(list(range(n_classes)), labels = np.concatenate([trial_epochs, trial_epochs]), rotation = 60)
         plt.yticks(list(range(n_classes)), labels = np.concatenate([trial_epochs, trial_epochs]))
         plt.gca().tick_params(axis='both', which='major', labelsize = 8)
-        for type in range(n_types):
+        #for type in range(n_types):
             #plt.text(-3, (type + 1)*n_epochs, trial_types[type], rotation = 'vertical')
-            plt.text(type*n_epochs, n_classes + 0.5, trial_types[type], fontsize = 10)
-        #    plt.plot([n_classes - 0.5, -0.5], [(type + 1)*n_epochs - 0.5, (type + 1)*n_epochs - 0.5], color = 'w')
-        #    plt.plot([(type + 1)*n_epochs - 0.5, (type + 1)*n_epochs - 0.5], [n_classes - 0.5, -0.5], color = 'w')
+            #plt.text(type*n_epochs, n_classes + 1.5, trial_types[type], fontsize = 10)
+            #plt.plot([n_classes - 0.5, -0.5], [(type + 1)*n_epochs - 0.5, (type + 1)*n_epochs - 0.5], color = 'w')
+            #plt.plot([(type + 1)*n_epochs - 0.5, (type + 1)*n_epochs - 0.5], [n_classes - 0.5, -0.5], color = 'w')
 
         #plt.xlim([0, n_classes])
         #plt.ylim([0, n_classes])
