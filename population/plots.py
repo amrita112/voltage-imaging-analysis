@@ -13,9 +13,9 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
     if specify_colorbar_limits:
         if norm == None:
             norm = matplotlib.colors.TwoSlopeNorm(vmin = vmin, vmax = vmax, vcenter = vcenter)
-        plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto', norm = norm, cmap = cmap)
+        plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto', norm = norm, cmap = cmap, interpolation = 'none')
     else:
-        plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto')
+        plt.imshow(spike_psth_array[cell_order, :], aspect = 'auto', interpolation = 'none')
     cb = plt.colorbar()
     cb.set_label(colorbar_label, fontsize = 20)
     plt.ylabel(ylabel, fontsize = 20)
