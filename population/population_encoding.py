@@ -5,8 +5,9 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.linear_model import LogisticRegression as logregress
 from sklearn.cluster import KMeans
+from os.path import sep
 
-def main(activity_dict, tvec, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, min_trials_train = 10, min_trials_test = 5, test_fraction = 2/3, penalty = 'l2', reg_strength = 1, random_state = None, max_iter = 100, plot_train_set = False, plot_reg_coeffs = False, plot_confusion_matrix = False):
+def main(activity_dict, tvec, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, min_trials_train = 10, min_trials_test = 5, test_fraction = 2/3, penalty = 'l2', reg_strength = 1, random_state = None, max_iter = 100, test_trial_avg = False, plot_train_set = False, plot_reg_coeffs = False, plot_confusion_matrix = False, plots_path = None):
     """Test how well trial type and trial epoch are encoded by the population
     """
     trial_types = list(activity_dict.keys())
@@ -28,7 +29,8 @@ def main(activity_dict, tvec, trial_types, trial_epochs, epoch_start_timepoints,
 
     conf_matrix = confusion_matrix(model, test_train_set, activity_dict,
                                    trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints,
-                                   make_plot = plot_confusion_matrix)
+                                   test_trial_avg = test_trial_avg, reg_strength = reg_strength,
+                                   make_plot = plot_confusion_matrix, plots_path = plots_path)
 
     #accuracy = pred_accuracy(model, test_train_set, spike_counts)
     #print(accuracy)
@@ -147,15 +149,19 @@ def train_model(test_train_set, activity_dict, tvec, cells_keep, trial_types, tr
 
     return model
 
-def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, make_plot = False):
+def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_epochs, epoch_start_timepoints, epoch_end_timepoints, test_trial_avg = False, reg_strength = 1, make_plot = False, plots_path = None):
 
     cell_ids = list(test_train_set[trial_types[0]]['train'].keys())
     n_cells = len(cell_ids)
     n_features = n_cells
     n_timepoints = activity_dict[trial_types[0]][cell_ids[0]].shape[1]
-    n_samples = np.sum([test_train_set[type]['n_test'] for type in trial_types])*n_timepoints # Number of samples for single trial type
     n_types = len(trial_types)
     n_epochs = len(trial_epochs)
+
+    if test_trial_avg:
+        n_samples = n_timepoints*n_types
+    else:
+        n_samples = np.sum([test_train_set[type]['n_test'] for type in trial_types])*n_timepoints # Number of samples for single trial type
 
     labels = np.zeros(n_timepoints)
     for tp in range(n_timepoints):
@@ -170,18 +176,32 @@ def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_ep
     for type_no in range(n_types):
 
         type = trial_types[type_no]
+        if test_trial_avg:
 
-        for trial_no in range(test_train_set[type]['n_test']):
-            sample1 = total_trials*n_timepoints
-            sample2 = (total_trials + 1)*n_timepoints
-
+            sample1 = type_no*n_timepoints
+            sample2 = (type_no + 1)*n_timepoints
             true_labels[sample1:sample2] = labels + type_no*n_epochs
 
-            for cell_no in range(n_cells):
-                cell = cell_ids[cell_no]
-                X[sample1:sample2, cell_no] = activity_dict[type][cell][test_train_set[type]['test'][cell][trial_no], :]
+            for trial_no in range(test_train_set[type]['n_test']):
+                for cell_no in range(n_cells):
+                    cell = cell_ids[cell_no]
+                    X[sample1:sample2, cell_no] += activity_dict[type][cell][test_train_set[type]['test'][cell][trial_no], :]
 
-            total_trials += 1
+            X = X/test_train_set[type]['n_test']
+        else:
+
+            for trial_no in range(test_train_set[type]['n_test']):
+
+                sample1 = total_trials*n_timepoints
+                sample2 = (total_trials + 1)*n_timepoints
+
+                true_labels[sample1:sample2] = labels + type_no*n_epochs
+
+                for cell_no in range(n_cells):
+                    cell = cell_ids[cell_no]
+                    X[sample1:sample2, cell_no] = activity_dict[type][cell][test_train_set[type]['test'][cell][trial_no], :]
+
+                total_trials += 1
 
     pred_labels = model.predict(X)
     assert(len(pred_labels) == n_samples)
@@ -197,21 +217,35 @@ def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_ep
         conf_matrix[true_label, pred_label] += 1
 
     freq_true = [np.sum(true_labels == label) for label in range(n_classes)]
+    assert(np.all([freq_true[label] > 0 for label in range(n_classes)]))
+
     for label in range(n_classes):
+        assert(np.sum(conf_matrix[label, :]) == freq_true[label])
         conf_matrix[label, :] = conf_matrix[label, :]/freq_true[label]
 
     if make_plot:
         plt.figure(constrained_layout = True)
         plt.imshow(conf_matrix)
-        plt.colorbar(label = 'Fraction labeled')
-        plt.xlabel('True label')
-        plt.ylabel('Predicted label')
+        cbar = plt.colorbar()
+        cbar.ax.tick_params(size = 8)
+        cbar.set_label(label = 'Fraction labeled', size = 10)
+        plt.ylabel('True label', fontsize = 12)
+        plt.title('Predicted label', fontsize = 12)
         plt.xticks(list(range(n_classes)), labels = np.concatenate([trial_epochs, trial_epochs]))
         plt.yticks(list(range(n_classes)), labels = np.concatenate([trial_epochs, trial_epochs]))
         plt.gca().tick_params(axis='both', which='major', labelsize = 8)
         for type in range(n_types):
             #plt.text(-3, (type + 1)*n_epochs, trial_types[type], rotation = 'vertical')
-            plt.text(type*n_epochs, -1, trial_types[type])
-            plt.plot([0, n_classes], [(type + 1)*n_epochs, (type + 1)*n_epochs], color = 'w')
-            plt.plot([(type + 1)*n_epochs, (type + 1)*n_epochs], [0, n_classes], color = 'w')
+            plt.text(type*n_epochs, n_classes + 0.5, trial_types[type], fontsize = 10)
+        #    plt.plot([n_classes - 0.5, -0.5], [(type + 1)*n_epochs - 0.5, (type + 1)*n_epochs - 0.5], color = 'w')
+        #    plt.plot([(type + 1)*n_epochs - 0.5, (type + 1)*n_epochs - 0.5], [n_classes - 0.5, -0.5], color = 'w')
+
+        #plt.xlim([0, n_classes])
+        #plt.ylim([0, n_classes])
+        if test_trial_avg:
+            suffix = 'test_trial_avg'
+        else:
+            suffix = 'test_single_trials'
+        plt.savefig('{0}{1}confusion_matrix_{2}_reg_{3}.png'.format(plots_path, sep, suffix, reg_strength))
+
     return conf_matrix
