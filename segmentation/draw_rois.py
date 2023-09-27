@@ -40,8 +40,7 @@ def make_seg_images(data_path, metadata_file, n_frames_reg = 1000, overwrite = F
 
     try:
         for session in sessions_to_process:
-            im = Image.open('{0}{1}Session{2}_seg_image_registered.tif'.format(data_path, sep, session))
-            seg_images[session] = np.array(im)
+            seg_images[session] = segmentation_utils.load_image_from_tif('{0}{1}Session{2}_seg_image_registered.tif'.format(data_path, sep, session))
         print('Loaded segmentation images')
 
     except:

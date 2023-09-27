@@ -90,3 +90,8 @@ def find_path(line_profiles):
         path[j-1] = pointer[path[j], j]
 
     return path
+
+def load_image_from_tif(image_path):
+
+    im = Image.open(image_path)
+    return np.array(im)
