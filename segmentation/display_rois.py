@@ -1,22 +1,25 @@
 from segmentation import draw_rois
+from segmentation import segmentation_utils
+
 from os.path import sep
 import pickle as pkl
 import matplotlib.pyplot as plt
 import numpy as np
 
 def display_rois(data_path, metadata_file, max_x, max_y, min_x, min_y, density,
+                 seg_image_path = [], seg_image_scale_factor = 1,
                  flip_vertical = False, flip_horizontal = False,
                  scalebar_width_um = 100, scalebar_text = True,
                  roi_color = 'r', roi_width = 1.5,  roi_colors = [],
                  fig_width = 15, dpi = 'exact', show_title = False,
                  save_fig = False, save_path = None, title = 'seg_image_annotated.tif',
                  cells = [], cell_labels = [],
-                 show_rois = True, show_density = False):
+                 show_rois = True, label_cells = True, show_density = False):
 
     # Load metadata
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)
-    um_per_px = metadata['um_per_px']
+    um_per_px = metadata['um_per_px']/seg_image_scale_factor
     roi_file = metadata['roi_file']
     try:
         with open('{0}{1}{2}'.format(data_path, sep, roi_file), 'rb') as f:
@@ -26,9 +29,13 @@ def display_rois(data_path, metadata_file, max_x, max_y, min_x, min_y, density,
         show_rois = False
         save_fig = False
 
-    mmap_filenames = metadata['mmap_filenames']
-    seg_images = draw_rois.make_seg_images(data_path, metadata_file, mmap_filenames)
     sessions_to_process = metadata['sessions_to_process']
+
+    if len(seg_image_path) == 0:
+        mmap_filenames = metadata['mmap_filenames']
+        seg_images = draw_rois.make_seg_images(data_path, metadata_file, mmap_filenames)
+    else:
+        seg_images = {session: segmentation_utils.load_image_from_tif(seg_image_path[sessions_to_process.index(session)]) for session in sessions_to_process}
 
     for session in sessions_to_process:
 
@@ -64,7 +71,7 @@ def display_rois(data_path, metadata_file, max_x, max_y, min_x, min_y, density,
                     cell_label = cell_id
                 else:
                     cell_label = cell_labels[cell]
-                vertices = roi['mask']
+                vertices = roi['mask']*seg_image_scale_factor
                 if np.sum(vertices == None) > 0:
                     print('Session {0} Cell {1}: mask missing'.format(session, cell_id))
                     continue
@@ -75,6 +82,29 @@ def display_rois(data_path, metadata_file, max_x, max_y, min_x, min_y, density,
                 if len(roi_colors) > 0:
                     roi_color = roi_colors[cell]
                 plt.plot(vertices[:, 1], vertices[:, 0], color = roi_color, linewidth = roi_width)
+
+        if label_cells:
+            if len(cells) == 0:
+                cell_ids = list(rois[session].keys())
+            else:
+                cell_ids = [cell for cell in list(rois[session].keys()) if cell - 1 in cells]
+            no_cells = len(cell_ids)
+
+            for cell in range(no_cells):
+                cell_id = cell_ids[cell]
+                roi = rois[session][cell_id]
+                if len(cell_labels) == 0:
+                    cell_label = cell_id
+                else:
+                    cell_label = cell_labels[cell]
+                vertices = roi['mask']*seg_image_scale_factor
+                if np.sum(vertices == None) > 0:
+                    print('Session {0} Cell {1}: mask missing'.format(session, cell_id))
+                    continue
+                if flip_vertical:
+                    vertices[:, 0] = h - vertices[:, 0]
+                if flip_horizontal:
+                    vertices[:, 1] = w - vertices[:, 1]
                 text_x = np.mean(vertices[:, 1]) + w*0.01
                 text_y = np.mean(vertices[:, 0])
                 plt.text(text_x, text_y, '{0}'.format(int(cell_label)), color = 'w',
