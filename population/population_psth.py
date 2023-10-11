@@ -14,7 +14,7 @@ from volpy import quality_control
 from population import plots
 from population import clustering
 
-def get_population_psth(population_data_path, movies, data_paths, metadata_file, genotype, overwrite_spike_psth = False, overwrite_dFF_psth = False, overwrite_trial_time_points = False, overwrite_spike_times_trials = False, make_plot_spike_psth = True, make_plot_dFF_psth = True, make_plot_for_each_cell = False, filter_freq = None, filter_type = 'lp', bin_size_ms = 100, plot_psths = True, save_fig = False):
+def get_population_psth(population_data_path, movies, data_paths, metadata_file, genotype, spike_psth_filename = 'population_psth.py', overwrite_spike_psth = False, overwrite_dFF_psth = False, overwrite_trial_time_points = False, overwrite_spike_times_trials = False, make_plot_spike_psth = True, make_plot_dFF_psth = False, incl_inc_trials = False, sort_by_choice = False, make_plot_for_each_cell = False, filter_freq = None, filter_type = 'lp', bin_size_ms = 100, plot_psths = True, save_fig = False):
 
     with open('{0}{1}qc_results.py'.format(population_data_path, sep), 'rb') as f:
         qc_results = pkl.load(f)
@@ -30,7 +30,7 @@ def get_population_psth(population_data_path, movies, data_paths, metadata_file,
         overwrite_trial_time_points = True
 
     try:
-        with open('{0}{1}population_psth.py'.format(population_data_path, sep), 'rb') as f:
+        with open('{0}{1}{2}'.format(population_data_path, sep, spike_psth_filename), 'rb') as f:
             population_psth = pkl.load(f)
             spike_psth = population_psth['spikes'] # Matrix of number of neurons X number of bins
 
@@ -65,10 +65,12 @@ def get_population_psth(population_data_path, movies, data_paths, metadata_file,
                                                    movies_keep, cells, total_cells,
                                                    blocks, bin_size_ms,
                                                    go_cue_time, sample_end_time, sample_start_time,
+                                                   incl_inc_trials = incl_inc_trials,
+                                                   sort_by_choice = sort_by_choice,
                                                    make_plot_for_each_cell = make_plot_for_each_cell,
                                                    overwrite_spike_times_trials = overwrite_spike_times_trials)
         spike_psth = population_psth['spikes']
-        with open('{0}{1}population_psth.py'.format(population_data_path, sep), 'wb') as f:
+        with open('{0}{1}{2}'.format(population_data_path, sep, spike_psth_filename), 'wb') as f:
             pkl.dump(population_psth, f)
 
     if make_plot_spike_psth:
@@ -400,7 +402,7 @@ def get_dFF_psth(data_paths, metadata_file, movies, cells, total_cells, blocks, 
 
     return output
 
-def get_spike_psth(data_paths, metadata_file, movies, cells, total_cells, blocks, bin_size_ms, go_cue_time, sample_end_time, sample_start_time, compute_random = False, make_plot_for_each_cell = False, overwrite_spike_times_trials = False, single_cell_psth_axes = []):
+def get_spike_psth(data_paths, metadata_file, movies, cells, total_cells, blocks, bin_size_ms, go_cue_time, sample_end_time, sample_start_time, incl_inc_trials = False, sort_by_choice = False, compute_random = False, make_plot_for_each_cell = False, overwrite_spike_times_trials = False, single_cell_psth_axes = []):
 
     output = {}
     spike_times_trials = {}
@@ -527,17 +529,52 @@ def get_spike_psth(data_paths, metadata_file, movies, cells, total_cells, blocks
 
         for cell in cells[movie]:
 
-            psth_cell_left_corr = psth[cell]['left_corr'][:, 1:]
-            spike_psth[cell_no, 0:n_bins] = np.mean(psth_cell_left_corr, axis = 1)*1000/bin_size_ms
-            spike_count_trials_left[cell_no] = np.zeros([psth_cell_left_corr.shape[1], 4])
-            for i in range(4):
-                spike_count_trials_left[cell_no][:, i] = np.sum(psth_cell_left_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
+            if incl_inc_trials:
+                if sort_by_choice:
+                    psth_cell_left_corr = psth[cell]['left_corr'][:, 1:]
+                    psth_cell_right_inc = psth[cell]['left_inc'][:, 1:]
+                    psth_cell_left_choice = np.concatenate([psth_cell_left_corr, psth_cell_right_inc], axis = 1)
+                    spike_psth[cell_no, 0:n_bins] = np.mean(psth_cell_left_choice, axis = 1)*1000/bin_size_ms
+                    spike_count_trials_left[cell_no] = np.zeros([psth_cell_left_corr.shape[1], 4])
+                    for i in range(4):
+                        spike_count_trials_left[cell_no][:, i] = np.sum(psth_cell_left_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
 
-            psth_cell_right_corr = psth[cell]['right_corr'][:, 1:]
-            spike_psth[cell_no, n_bins:] = np.mean(psth_cell_right_corr, axis = 1)*1000/bin_size_ms
-            spike_count_trials_right[cell_no] = np.zeros([psth_cell_right_corr.shape[1], 4])
-            for i in range(4):
-                spike_count_trials_right[cell_no][:, i] = np.sum(psth_cell_right_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
+                    psth_cell_right_corr = psth[cell]['right_corr'][:, 1:]
+                    psth_cell_left_inc = psth[cell]['left_inc'][:, 1:]
+                    psth_cell_right_choice = np.concatenate([psth_cell_right_corr, psth_cell_left_inc], axis = 1)
+                    spike_psth[cell_no, n_bins:] = np.mean(psth_cell_right_choice, axis = 1)*1000/bin_size_ms
+                    spike_count_trials_right[cell_no] = np.zeros([psth_cell_right_corr.shape[1], 4])
+                    for i in range(4):
+                        spike_count_trials_right[cell_no][:, i] = np.sum(psth_cell_right_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
+                else:
+                    psth_cell_left_corr = psth[cell]['left_corr'][:, 1:]
+                    psth_cell_left_inc = psth[cell]['left_inc'][:, 1:]
+                    psth_cell_left = np.concatenate([psth_cell_left_corr, psth_cell_left_inc], axis = 1)
+                    spike_psth[cell_no, 0:n_bins] = np.mean(psth_cell_left, axis = 1)*1000/bin_size_ms
+                    spike_count_trials_left[cell_no] = np.zeros([psth_cell_left_corr.shape[1], 4])
+                    for i in range(4):
+                        spike_count_trials_left[cell_no][:, i] = np.sum(psth_cell_left_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
+
+                    psth_cell_right_corr = psth[cell]['right_corr'][:, 1:]
+                    psth_cell_right_inc = psth[cell]['right_inc'][:, 1:]
+                    psth_cell_right = np.concatenate([psth_cell_right_corr, psth_cell_right_inc], axis = 1)
+                    spike_psth[cell_no, n_bins:] = np.mean(psth_cell_right, axis = 1)*1000/bin_size_ms
+                    spike_count_trials_right[cell_no] = np.zeros([psth_cell_right_corr.shape[1], 4])
+                    for i in range(4):
+                        spike_count_trials_right[cell_no][:, i] = np.sum(psth_cell_right_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
+            else:
+
+                psth_cell_left_corr = psth[cell]['left_corr'][:, 1:]
+                spike_psth[cell_no, 0:n_bins] = np.mean(psth_cell_left_corr, axis = 1)*1000/bin_size_ms
+                spike_count_trials_left[cell_no] = np.zeros([psth_cell_left_corr.shape[1], 4])
+                for i in range(4):
+                    spike_count_trials_left[cell_no][:, i] = np.sum(psth_cell_left_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
+
+                psth_cell_right_corr = psth[cell]['right_corr'][:, 1:]
+                spike_psth[cell_no, n_bins:] = np.mean(psth_cell_right_corr, axis = 1)*1000/bin_size_ms
+                spike_count_trials_right[cell_no] = np.zeros([psth_cell_right_corr.shape[1], 4])
+                for i in range(4):
+                    spike_count_trials_right[cell_no][:, i] = np.sum(psth_cell_right_corr[spike_count_bin_edges[i]:spike_count_bin_edges[i + 1], :], axis = 0)
 
             # Comput psth from two random divisions of the data, to get a better idea of ordering of cells by latency
             if compute_random:
@@ -792,7 +829,7 @@ def filt_dFF(trace, filter_freq, frame_rate, filter_type = 'lp', order = 3):
         signal = trace
     return signal
 
-def get_population_tvec(movies, cells, data_paths, metadata_file, blocks, go_cue_time, sample_start_time, sample_end_time, trial_types_left_right_cor_inc, bin_size_ms, ):
+def get_population_tvec(movies, cells, data_paths, metadata_file, blocks, go_cue_time, sample_start_time, sample_end_time, bin_size_ms, ):
 
     output = {}
     pre_sample_bins = {}
