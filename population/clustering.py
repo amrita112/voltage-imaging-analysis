@@ -42,3 +42,32 @@ def select_n_clusters(vectors, max_n_clust, min_n_clust = 2, n_iter = 10):
             i += 1
 
     return scores
+
+def order_clusters_by_time_of_peak(vectors, n_clust):
+
+    cluster_labels = k_means_clust(vectors, n_clust)
+
+    n_frames = vectors.shape[1]
+
+    clust_vectors = np.zeros([n_clust, n_frames])
+    for clust in range(n_clust):
+
+        clust_vectors[clust, :] = np.mean(vectors[np.where(cluster_labels == clust)[0], :], axis = 0)
+
+    peak_activity = np.argmax(clust_vectors, axis = 1)
+    assert(len(peak_activity) == n_clust)
+    clust_order = np.argsort(peak_activity)
+
+    cell_order_clust_peak = []
+    cb = []
+    n_cells_count = 0
+
+    for clust in range(n_clust):
+        clust_id = clust_order[clust]
+        cells = np.where(cluster_labels == clust_id)[0]
+        cell_order_clust_peak = np.append(cell_order_clust_peak, cells)
+        n_cells_count += len(cells)
+        cb = np.append(cb, n_cells_count)
+
+    return {'cell_order': cell_order_clust_peak.astype(int),
+            'cluster_boundaries': cb}
