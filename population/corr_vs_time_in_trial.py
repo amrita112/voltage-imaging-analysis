@@ -4,9 +4,11 @@ from tqdm import tqdm
 from os.path import sep
 
 from population import clustering
+from behavior_responses import utils
 
 def plot_pop_corr(activity_dict, epoch_start_timepoints, epoch_end_timepoints, tvec,
-                  trial_types = ['Left', 'Right'],
+                  trial_types = ['Left', 'Right'], divide_sd = False,
+                  plot_activity_matrices = False,
                   figsize = [10, 10], savefig = False, save_path = None):
     """Plot a heatmap showing the correlation of the population activity vector for each timepoint in a trial with each other timepoint.
        Inputs:
@@ -33,6 +35,9 @@ def plot_pop_corr(activity_dict, epoch_start_timepoints, epoch_end_timepoints, t
     activity_matrix1 = np.zeros([n_cells, 2*n_timepoints])
     activity_matrix2 = np.zeros([n_cells, 2*n_timepoints])
 
+    sd_matrix1 = np.zeros([n_cells, 2*n_timepoints])
+    sd_matrix2 = np.zeros([n_cells, 2*n_timepoints])
+
     print('Building population activity matrices')
     for cell in tqdm(range(n_cells)):
 
@@ -45,6 +50,8 @@ def plot_pop_corr(activity_dict, epoch_start_timepoints, epoch_end_timepoints, t
 
         activity_matrix1[cell, :n_timepoints] = np.mean(activity_dict[trial_types[0]][cell][trial_set1, :], axis = 0)
         activity_matrix2[cell, :n_timepoints] = np.mean(activity_dict[trial_types[0]][cell][trial_set2, :], axis = 0)
+        sd_matrix1[cell, :n_timepoints] = np.std(activity_dict[trial_types[0]][cell][trial_set1, :], axis = 0)
+        sd_matrix2[cell, :n_timepoints] = np.std(activity_dict[trial_types[0]][cell][trial_set2, :], axis = 0)
 
         # Trial type 2
         n_trials = activity_dict[trial_types[1]][cell].shape[0]
@@ -55,6 +62,62 @@ def plot_pop_corr(activity_dict, epoch_start_timepoints, epoch_end_timepoints, t
 
         activity_matrix1[cell, n_timepoints:] = np.mean(activity_dict[trial_types[1]][cell][trial_set1, :], axis = 0)
         activity_matrix2[cell, n_timepoints:] = np.mean(activity_dict[trial_types[1]][cell][trial_set2, :], axis = 0)
+        sd_matrix1[cell, n_timepoints:] = np.std(activity_dict[trial_types[1]][cell][trial_set1, :], axis = 0)
+        sd_matrix2[cell, n_timepoints:] = np.std(activity_dict[trial_types[1]][cell][trial_set2, :], axis = 0)
+
+    # Plot the activity matrices
+    if plot_activity_matrices:
+
+        ticks = np.concatenate([epoch_start_timepoints[1:], [t + n_timepoints for t in epoch_start_timepoints[1:]]])
+        labels = np.concatenate([np.round([tvec[t] for t in epoch_start_timepoints[1:]], 2),
+                                    np.round([tvec[t] for t in epoch_start_timepoints[1:]], 2)])
+
+        fig1, ax1 = plt.subplots(nrows = 2, ncols = 1, figsize = figsize, constrained_layout = True, sharex = True)
+
+        plot = ax1[0].imshow(activity_matrix1, aspect = 'auto', cmap = 'bwr', norm = utils.get_two_slope_norm(activity_matrix1, 1))
+        plt.colorbar(mappable = plot, ax = ax1[0], label = 'Firing rate (Hz)', shrink = 1)
+
+        plot = ax1[1].imshow(sd_matrix1, aspect = 'auto', cmap = 'bwr', norm = utils.get_two_slope_norm(sd_matrix1, 1))
+        plt.colorbar(mappable = plot, ax = ax1[1], label = 'Standard deviation of firing rate (Hz)', shrink = 1)
+
+        for t in epoch_start_timepoints:
+            ax1[0].plot([t, t], [0, n_cells], color = 'k')
+            ax1[0].plot([t + n_timepoints, t + n_timepoints], [0, n_cells], color = 'k')
+            ax1[1].plot([t, t], [0, n_cells], color = 'k')
+            ax1[1].plot([t + n_timepoints, t + n_timepoints], [0, n_cells], color = 'k')
+
+        ax1[1].set_xticks(ticks)
+        ax1[1].set_xticks(ticks)
+        ax1[1].set_xticklabels(labels)
+        ax1[1].set_xlabel('Time from go cue (s)')
+        ax1[0].set_ylabel('Cell #')
+        ax1[0].set_title('Mean across trials')
+        ax1[1].set_ylabel('Cell #')
+        ax1[1].set_title('Standard deviation across trials')
+
+        fig2, ax2 = plt.subplots(nrows = 2, ncols = 1, figsize = figsize, constrained_layout = True, sharex = True)
+
+        plot = ax2[0].imshow(activity_matrix2, aspect = 'auto', cmap = 'bwr', norm = utils.get_two_slope_norm(activity_matrix2, 1))
+        plt.colorbar(mappable = plot, ax = ax2[0], label = 'Firing rate (Hz)', shrink = 1)
+
+        plot = ax2[1].imshow(sd_matrix2, aspect = 'auto', cmap = 'bwr', norm = utils.get_two_slope_norm(sd_matrix2, 1))
+        plt.colorbar(mappable = plot, ax = ax2[1], label = 'Standard deviation of firing rate (Hz)', shrink = 1)
+
+        for t in epoch_start_timepoints:
+            ax2[0].plot([t, t], [0, n_cells], color = 'k')
+            ax2[0].plot([t + n_timepoints, t + n_timepoints], [0, n_cells], color = 'k')
+            ax2[1].plot([t, t], [0, n_cells], color = 'k')
+            ax2[1].plot([t + n_timepoints, t + n_timepoints], [0, n_cells], color = 'k')
+
+        ax2[1].set_xticks(ticks)
+        ax2[1].set_xticks(ticks)
+        ax2[1].set_xticklabels(labels)
+        ax2[1].set_xlabel('Time from go cue (s)')
+        ax2[0].set_ylabel('Cell #')
+        ax2[0].set_title('Mean across trials')
+        ax2[1].set_ylabel('Cell #')
+        ax2[1].set_title('Standard deviation across trials')
+
 
     # Calculate Pearson's correlation of activity_matrix1 with activity_matrix2
     print('Calculating correlation')
@@ -112,7 +175,7 @@ def plot_pop_corr(activity_dict, epoch_start_timepoints, epoch_end_timepoints, t
     plt.xlim([0, 2*n_timepoints])
     plt.ylim([2*n_timepoints, 0])
 
-    plt.colorbar(mappable = plot, ax = ax, label = 'Pearson\'s correlation of\npopulation activity vector')
+    plt.colorbar(mappable = plot, ax = ax, label = 'Pearson\'s correlation of\npopulation activity vector', shrink = 0.5)
 
     if savefig:
         plt.savefig('{0}{1}correlation_vs_time.png'.format(save_path, sep))
