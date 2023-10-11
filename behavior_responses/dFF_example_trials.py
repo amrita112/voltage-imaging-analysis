@@ -9,7 +9,7 @@ from behavior_responses import process_bpod_data
 from behavior_responses import spike_rasters
 from pre_processing import trial_tiff_stacks
 
-def plot(data_path, metadata_file, cell_no, n_trials_plot = 5, trials_plot = [], trials_zoom = [], time_zoom = [], plot_zoom = False, scalebar_width_s = 0.3, scalebar_height = 0.05, save_fig = False, save_path = None):
+def plot(data_path, metadata_file, cell_no, n_trials_plot = 5, trials_plot = [], trials_zoom = [], time_zoom = [], plot_zoom = False, scalebar_width_s = 0.3, scalebar_height = 0.05, color_spikes = 'gray', save_fig = False, save_path = None):
 
     with open('{0}{1}{2}'.format(data_path, sep, metadata_file), 'rb') as f:
         metadata = pkl.load(f)
@@ -47,7 +47,7 @@ def plot(data_path, metadata_file, cell_no, n_trials_plot = 5, trials_plot = [],
         tvec = np.linspace(0, len(dFF_plot)/frame_rate, len(dFF_plot))
         if np.max(tvec) > max_tvec:
             max_tvec = np.max(tvec)
-        plt.plot(tvec, dFF_plot - min_val + max_val_prev, color = 'k', linewidth = 0.8)
+        plt.plot(tvec, dFF_plot - min_val + max_val_prev, color = 'k', linewidth = 0.5)
         max_val_prev = np.max(dFF_plot - min_val + max_val_prev)
 
     levels = np.append(levels, max_val_prev)
@@ -82,8 +82,8 @@ def plot(data_path, metadata_file, cell_no, n_trials_plot = 5, trials_plot = [],
 
     if save_fig:
         if save_path == None:
-            save_path = '{0}{1}Plots{1}Cell{2}_dFF_example_trials.png'.format(data_path, sep, cell_no + 1)
-        plt.savefig(save_path)
+            save_path = '{0}{1}Plots{1}'.format(data_path, sep)
+        plt.savefig('{0}{1}Cell{2}_dFF_example_trials.png'.format(save_path, sep, cell_ids[cell_no]))
 
     if plot_zoom:
         plt.figure(figsize = [2, 2], constrained_layout = True)
@@ -107,8 +107,8 @@ def plot(data_path, metadata_file, cell_no, n_trials_plot = 5, trials_plot = [],
 
             min_val = np.min(dFF_plot)
             plt.plot(dFF_plot - min_val + max_val_prev, color = 'k', linewidth = 0.6)
-            plt.scatter(spikes_plot, dFF_plot[spikes_plot] - min_val + max_val_prev, color = 'gray', marker = '.')
             max_val_prev = np.max(dFF_plot - min_val + max_val_prev)
+            plt.scatter(spikes_plot, max_val_prev*np.ones(len(spikes_plot)), color = color_spikes, marker = '.')
 
         # dF/F scalebar
         left = frame1 - frame0 + scalebar_width_s*frame_rate/10
@@ -120,5 +120,5 @@ def plot(data_path, metadata_file, cell_no, n_trials_plot = 5, trials_plot = [],
         plt.gca().axis('off')
 
         if save_fig:
-            save_path = '{0}{1}Plots{1}Cell{2}_dFF_example_trials_zoom.png'.format(data_path, sep, cell_no + 1)
+            save_path = '{0}{1}Cell{2}_dFF_example_trials_zoom.png'.format(save_path, sep, cell_ids[cell_no])
             plt.savefig(save_path)
