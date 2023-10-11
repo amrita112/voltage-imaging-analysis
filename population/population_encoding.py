@@ -230,7 +230,7 @@ def confusion_matrix(model, test_train_set, activity_dict, trial_types, trial_ep
 
     if make_plot:
         plt.figure(constrained_layout = True, figsize = figsize)
-        plt.imshow(conf_matrix)
+        plt.imshow(conf_matrix, vmin = 0, vmax = 1)
         cbar = plt.colorbar(shrink = 0.5)
         cbar.ax.tick_params(labelsize = 8)
         cbar.set_label(label = 'Fraction labeled', size = 10)
