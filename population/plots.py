@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 
-def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', xlabel = 'Time from go cue (s)', figsize = [12, 12], ylim = 0, show_trial_epochs = True, linecolor = None, cmap = None, norm = None, vmin = None, vmax = None, vcenter = None, specify_colorbar_limits = False):
+def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boundaries = [], cluster_names = [], save_path = None, save_fig = False, colorbar_label = 'Firing rate (Hz)', ylabel = 'Neuron #', xlabel = 'Time from go cue (s)', figsize = [12, 12], ylim = 0, show_trial_epochs = True, linecolor = None, cb_linewidth = 2, cb_linestyle = '--', cmap = None, norm = None, vmin = None, vmax = None, vcenter = None, specify_colorbar_limits = False):
 
     n_neurons = spike_psth_array.shape[0]
     n_bins = int(spike_psth_array.shape[1]/2)
@@ -24,7 +24,7 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
         linecolor = 'w'
     for cb in cluster_boundaries:
         plt.plot(list(range(n_bins*2)), np.ones(n_bins*2)*cb,
-                 color = linecolor, linewidth = 2, linestyle = '--')
+                 color = linecolor, linewidth = cb_linewidth, linestyle = cb_linestyle)
     cluster_boundaries = np.insert(cluster_boundaries, 0, 0)
     for n in range(len(cluster_names)):
         plt.text(-10, (cluster_boundaries[n] + cluster_boundaries[n + 1])/2, cluster_names[n],
@@ -72,7 +72,7 @@ def plot_spike_psth(spike_psth_array, tvec, ticks, cell_order = [], cluster_boun
     if save_fig:
         plt.savefig(save_path)
 
-def plot_single_cell_spike_psth(psth_cell_left_corr, psth_cell_right_corr, left_corr_trial_nos, right_corr_trial_nos, tvec, go_cue_time, sample_end_time, sample_start_time, axes = None, color_spikes = 'k', save_plot = False):
+def plot_single_cell_spike_psth(psth_cell_left_corr, psth_cell_right_corr, left_corr_trial_nos, right_corr_trial_nos, tvec, go_cue_time, sample_end_time, sample_start_time, axes = None, color_spikes = 'k', save_plot = False, save_path = None):
 
     if axes == None:
         fig, ax = plt.subplots(nrows = 2, ncols = 1, constrained_layout = True, sharex = True, figsize = [8, 10])
@@ -125,7 +125,9 @@ def plot_single_cell_spike_psth(psth_cell_left_corr, psth_cell_right_corr, left_
     ax_psth.plot(np.ones(10)*(sample_start_time - go_cue_time), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
     ax_psth.plot(np.zeros(10), np.linspace(y0, y1, 10), linestyle = '--', linewidth = 0.5, color = 'gray')
     if save_plot:
-        plt.savefig('{0}{1}Cell_{2}_{3}.png'.format(spike_rasters_path, sep, cell + 1, suffix))
+        if save_path == None:
+            save_path = spike_rasters_path
+        plt.savefig('{0}{1}Cell_{2}_psth.png'.format(save_path, sep, cell + 1))
 
 def plot_spike_psth_latency_order(spike_psth_array_order, spike_psth_array_display, tvec, ticks, trial_type_text = False, save_path = None, save_fig = False, colorbar_label = 'Normalized activity', ylabel = 'Neuron #', figsize = [12, 12]):
 
